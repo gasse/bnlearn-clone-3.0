@@ -1234,6 +1234,11 @@ check.B = function(B, criterion) {
       B = as.integer(B)
 
     }#THEN
+    else if (criterion %in% resampling.semiparam.tests){
+
+      B = 100L
+
+    }#THEN
     else {
 
       B = 5000L

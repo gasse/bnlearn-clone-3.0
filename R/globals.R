@@ -1,13 +1,16 @@
 
 # Global variables.
-available.discrete.tests = c("mi", "mi-sh", "x2", "mc-mi", "smc-mi", "mc-x2", "smc-x2")
+available.discrete.tests = c("mi", "mi-sh", "x2", "mc-mi", "smc-mi", "mc-x2",
+  "smc-x2", "pf-mi", "pf-x2", "mi-h", "pf-mi-h")
 available.continuous.tests = c("cor", "zf", "mi-g", "mi-g-sh", "mc-mi-g",
   "smc-mi-g", "mc-cor", "smc-cor", "mc-zf", "smc-zf")
 available.tests = c(available.discrete.tests, available.continuous.tests)
 
-resampling.tests = c("mc-mi", "smc-mi", "mc-x2", "smc-x2", "mc-mi-g", "smc-mi-g",
-  "mc-cor", "smc-cor", "mc-zf", "smc-zf")
-asymptotic.tests = c("mi", "mi-g", "x2", "zf")
+resampling.semiparam.tests = c("pf-mi", "pf-x2", "pf-mi-h")
+resampling.tests = c(resampling.semiparam.tests, "mc-mi", "smc-mi", "mc-x2",
+  "smc-x2", "mc-mi-g", "smc-mi-g", "mc-cor", "smc-cor", "mc-zf", "smc-zf")
+asymptotic.tests = c("mi", "mi-g", "x2", "zf", "mc-mi", "smc-mi", "mc-x2",
+  "smc-x2", "pf-mi", "pf-x2", "mi-h", "pf-mi-h")
 
 available.discrete.scores = c("loglik", "aic", "bic", "bde", "bdes", "k2", "mbde")
 available.continuous.scores = c("bge", "loglik-g", "aic-g", "bic-g")
@@ -74,7 +77,11 @@ test.labels = c(
   'smc-cor' = "Pearson's Linear Correlation (Sequential Monte Carlo)",
   'zf' = "Fisher's Z Test",
   'mc-zf' = "Fisher's Z Test (Monte Carlo)",
-  'smc-zf' = "Fisher's Z Test (Sequential Monte Carlo)"
+  'smc-zf' = "Fisher's Z Test (Sequential Monte Carlo)",
+  "pf-mi" = "Mutual Information (discrete, permutation-fitted df)",
+  "pf-x2" = "Pearson's X^2 (permutation-fitted df)",
+  'mi-h' = "Mutual Information (discrete) with heuristics",
+  "pf-mi-h" = "Mutual Information (discrete, permutation-fitted df) with heuristic"
 )
 
 score.labels = c(

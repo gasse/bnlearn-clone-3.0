@@ -12,6 +12,7 @@ conditional.test = function(x, y, sx, data, test, B, alpha = 1, learning = TRUE)
   sx = sx[sx != ""]
   ndata = nrow(data)
   df = NULL
+  perm.counter = NULL
 
   if (length(sx) == 0) {
 
@@ -28,7 +29,7 @@ conditional.test = function(x, y, sx, data, test, B, alpha = 1, learning = TRUE)
 
     }#THEN
     # Shrinked Mutual Infomation (chi-square asymptotic distribution)
-    if (test == "mi-sh") {
+    else if (test == "mi-sh") {
 
       statistic = shmi.test(datax, datay, ndata, gsquare = TRUE)
       df = (nlevels(datax) - 1) * (nlevels(datay) - 1)
@@ -84,6 +85,7 @@ conditional.test = function(x, y, sx, data, test, B, alpha = 1, learning = TRUE)
                     alpha = ifelse(test == "smc-mi", alpha, 1), test = 1L)
       statistic = perm.test[1]
       p.value = perm.test[2]
+      perm.counter = perm.test[3]
 
     }#THEN
     # Pearson's X^2 test (monte carlo permutation distribution)
@@ -93,6 +95,7 @@ conditional.test = function(x, y, sx, data, test, B, alpha = 1, learning = TRUE)
                     alpha = ifelse(test == "smc-x2", alpha, 1), test = 2L)
       statistic = perm.test[1]
       p.value = perm.test[2]
+      perm.counter = perm.test[3]
 
     }#THEN
     # Mutual Information for Gaussian Data (monte carlo permutation distribution)
@@ -119,6 +122,98 @@ conditional.test = function(x, y, sx, data, test, B, alpha = 1, learning = TRUE)
       p.value = gmc.test(datax, datay, samples = B,
                   alpha = ifelse(test == "smc-xf", alpha, 1), test = 5L)
 
+    }#THEN
+    # Pearson's X^2 test with permutation-fitted df
+    # (chi-square asymptotic distribution)
+    else if(test == "pf-x2") {
+      
+      perm.mean = mc.mean(datax, datay, ndata, samples = B, test = 2L)
+      
+      statistic = perm.mean[1]
+      df = perm.mean[2]
+      perm.counter = perm.mean[3]
+      
+      p.value = pchisq(statistic, df, lower.tail = FALSE)
+      
+    }#THEN
+    # Mutual Infomation with permutation-fitted df
+    # (chi-square asymptotic distribution)
+    else if (test == "pf-mi") {
+      
+      perm.mean = mc.mean(datax, datay, ndata, samples = B, test = 1L)
+      
+      statistic = perm.mean[1]
+      df = perm.mean[2]
+      perm.counter = perm.mean[3]
+      
+      # Exception : in the rare cases where the df approximation is negative
+      # (borderline log computation), we assume independence
+      if(df <= 0)
+        p.value = 1
+      else
+        p.value = pchisq(statistic, df, lower.tail = FALSE)
+      
+    }#THEN
+    # Mutual Infomation with df adjustment and data requirement heuristics
+    # (chi-square asymptotic distribution)
+    else if (test == "mi-h") {
+      
+      # heuristic 1 : when less than 5 individuals per cell in the
+      # contingency table, we claim independence (the test is not reliable)
+      if (nrow(data) < (5 * nlevels(datax) * nlevels(datay))) {
+        
+        statistic = -1
+        p.value = 1
+        
+      }#THEN
+      else {
+        
+        # heuristic 2 : df is lowered when a column or row margin is empty in
+        # the contingency table.
+        heur.test = mi_df.test(datax, datay, ndata, gsquare = TRUE)
+        statistic = heur.test[1]
+        df = heur.test[2]
+        
+        # If the adjustement heuristic returns a df equal to zero, then one of
+        # the X or Y variables can be considered one-dimension given the data
+        # sample. In this case we claim independence.
+        if (df == 0)
+          p.value = 1
+        else
+          p.value = pchisq(statistic, df, lower.tail = FALSE)
+        
+      }#ELSE
+      
+    }#THEN
+    # Mutual Infomation with permutation-fitted df and data requirement
+    # heuristic (chi-square asymptotic distribution)
+    else if (test == "pf-mi-h") {
+      
+      # heuristic 1 : when less than 5 individuals per cell in the
+      # contingency table, we claim independence (the test is not reliable)
+      if (nrow(data) < (5 * nlevels(datax) * nlevels(datay))) {
+        
+        statistic = -1
+        p.value = 1
+        
+      }#THEN
+      else {
+        
+        perm.mean = mc.mean(datax, datay, ndata, samples = B, test = 1L)
+        
+        statistic = perm.mean[1]
+        df = perm.mean[2]
+        perm.counter = perm.mean[3]
+        
+        # Exception : in the rare cases where the df approximation is negative
+        # (borderline log computation), we assume independence
+        if(df <= 0)
+          p.value = 1
+        else
+          p.value = pchisq(statistic, df, lower.tail = FALSE)
+        
+      }#ELSE
+      
     }#THEN
 
   }#THEN
@@ -147,7 +242,7 @@ conditional.test = function(x, y, sx, data, test, B, alpha = 1, learning = TRUE)
 
     }#THEN
     # Shrinked Conditional Mutual Infomation (chi-square asymptotic distribution)
-    if (test == "mi-sh") {
+    else if (test == "mi-sh") {
 
       datax = minimal.data.frame.column(data, x)
       datay = minimal.data.frame.column(data, y)
@@ -219,6 +314,7 @@ conditional.test = function(x, y, sx, data, test, B, alpha = 1, learning = TRUE)
                     alpha = ifelse(test == "smc-mi", alpha, 1), test = 1L)
       statistic = perm.test[1]
       p.value = perm.test[2]
+      perm.counter = perm.test[3]
 
     }#THEN
     # Pearson's X^2 test (monte carlo permutation distribution)
@@ -231,6 +327,7 @@ conditional.test = function(x, y, sx, data, test, B, alpha = 1, learning = TRUE)
                     alpha = ifelse(test == "smc-x2", alpha, 1), test = 2L)
       statistic = perm.test[1]
       p.value = perm.test[2]
+      perm.counter = perm.test[3]
 
     }#THEN
     # Mutual Information for Gaussian Data (monte carlo permutation distribution)
@@ -259,10 +356,121 @@ conditional.test = function(x, y, sx, data, test, B, alpha = 1, learning = TRUE)
                   alpha = ifelse(test == "smc-zf", alpha, 1), test = 5L)
 
     }#THEN
+    # Mutual Infomation with permutation-fitted df
+    # (chi-square asymptotic distribution)
+    else if (test == "pf-mi") {
+      
+      datax = minimal.data.frame.column(data, x)
+      datay = minimal.data.frame.column(data, y)
+      
+      perm.mean = cmc.mean(datax, datay, config, ndata, samples = B, test = 1L)
+      
+      statistic = perm.mean[1]
+      df = perm.mean[2]
+      perm.counter = perm.mean[3]
+      
+      # Exception : in the rare cases where the df approximation is negative
+      # (borderline log computation), we assume independence
+      if(df <= 0)
+        p.value = 1
+      else
+        p.value = pchisq(statistic, df, lower.tail = FALSE)
+      
+    }#THEN
+    # Pearson's X^2 test with permutation-fitted df
+    # (chi-square asymptotic distribution)
+    else if(test == "pf-x2") {
+      
+      datax = minimal.data.frame.column(data, x)
+      datay = minimal.data.frame.column(data, y)
+      
+      perm.mean = cmc.mean(datax, datay, config, ndata, samples = B, test = 2L)
+      
+      statistic = perm.mean[1]
+      df = perm.mean[2]
+      perm.counter = perm.mean[3]
+      
+      p.value = pchisq(statistic, df, lower.tail = FALSE)
+      
+    }#THEN
+    # Mutual Infomation with df adjustement and data requirement heuristics
+    # (chi-square asymptotic distribution)
+    else if (test == "mi-h") {
+      
+      datax = minimal.data.frame.column(data, x)
+      datay = minimal.data.frame.column(data, y)
+      
+      # heuristic 1 : when less than 5 individuals per cell in the
+      # contingency table, we claim independence (the test is not reliable)
+      if (nrow(data) < (5 * nlevels(datax) * nlevels(datay) * nlevels(config))) {
+        
+        statistic = -1
+        p.value = 1
+        
+      }#THEN
+      else {
+        
+        # heuristic 2 : df is lowered when a column or row margin is empty in
+        # the contingency table.
+        heur.test = cmi_df.test(datax, datay, config, ndata, gsquare = TRUE)
+        statistic = heur.test[1]
+        df = heur.test[2]
+        
+        # If the adjustement heuristic returns a df equal to zero, then one of
+        # the X or Y variables can be considered one-dimension given the data
+        # sample. In this case we claim independence.
+        if (df == 0)
+          p.value = 1
+        else
+          p.value = pchisq(statistic, df, lower.tail = FALSE)
+        
+      }#ELSE
+      
+    }#THEN
+    # Mutual Infomation with permutation-fitted df and data requirement
+    # heuristic (chi-square asymptotic distribution)
+    else if (test == "pf-mi-h") {
+      
+      datax = minimal.data.frame.column(data, x)
+      datay = minimal.data.frame.column(data, y)
+      
+      # heuristic 1 : when less than 5 individuals per cell in the
+      # contingency table, we claim independence (the test is not reliable)
+      if (nrow(data) < (5 * nlevels(datax) * nlevels(datay) * nlevels(config))) {
+        
+        statistic = -1
+        p.value = 1
+        
+      }#THEN
+      else {
+        
+        perm.mean = cmc.mean(datax, datay, config, ndata, samples = B, test = 1L)
+        
+        statistic = perm.mean[1]
+        df = perm.mean[2]
+        perm.counter = perm.mean[3]
+        
+        # If the adjustement heuristic returns a df equal to zero, then one of
+        # the X or Y variables can be considered one-dimension given the data
+        # sample. In this case we claim independence.
+        if(df <= 0)
+          p.value = 1
+        else
+          p.value = pchisq(statistic, df, lower.tail = FALSE)
+        
+      }#ELSE
+      
+    }#THEN
 
   }#ELSE
 
   if (learning) {
+
+    # update the permutation counter.
+    if (!is.null(perm.counter))
+      assign(".test.counter.permut",
+             get(".test.counter.permut", envir = .GlobalEnv) + perm.counter,
+             envir = .GlobalEnv)
 
     return(p.value)
 
@@ -282,11 +490,14 @@ conditional.test = function(x, y, sx, data, test, B, alpha = 1, learning = TRUE)
                paste(sx, collapse = " + "))
         ), class = "htest")
 
+    if (!is.null(perm.counter))
+      result$parameter[["Permutations counter"]] = perm.counter
+
     if (!is.null(df))
-      result$parameter = structure(df, names = "df")
+      result$parameter[["df"]] = df
 
     if (!is.null(B))
-      result$parameter = structure(B, names = "Monte Carlo samples")
+      result$parameter[["Monte Carlo samples"]] = B
 
     return(result)
 
@@ -532,4 +743,69 @@ fast.shpcor = function(x, y, sx, data, ndata, strict) {
 
 }#FAST.SHPCOR
 
+# Mutual Information with df adjustment heuristic (discrete data)
+mi_df.test = function(x, y, ndata, gsquare = TRUE) {
+  
+  s = .Call("mi_df",
+            x = x,
+            y = y,
+            lx = nlevels(x),
+            ly = nlevels(y),
+            length = ndata,
+            PACKAGE = "bnlearn")
+  
+  s[1] = ifelse(gsquare, 2 * ndata * s[1], s[1])
+  
+  return(s)
+  
+}#MI_DF.TEST
 
+# Conditional Mutual Information (discrete data)
+cmi_df.test = function(x, y, z, ndata, gsquare = TRUE) {
+  
+  s = .Call("cmi_df",
+            x = x,
+            y = y,
+            z = z,
+            lx = nlevels(x),
+            ly = nlevels(y),
+            lz = nlevels(z),
+            length = ndata,
+            PACKAGE = "bnlearn")
+  
+  s[1] = ifelse(gsquare, 2 * ndata * s[1], s[1])
+  
+  return(s)
+  
+}#CMI_DF.TEST
+
+# Monte Carlo mean (discrete data)
+mc.mean = function(x, y, ndata, samples, test) {
+  
+  .Call("mcarlo_mean",
+        x = x,
+        y = y,
+        lx = nlevels(x),
+        ly = nlevels(y),
+        length = ndata,
+        samples = samples,
+        test = test,
+        PACKAGE = "bnlearn")
+  
+}#MC.MEAN
+
+# Conditional Monte Carlo mean (discrete data)
+cmc.mean = function(x, y, z, ndata, samples, test) {
+  
+  .Call("cmcarlo_mean",
+        x = x,
+        y = y,
+        z = z,
+        lx = nlevels(x),
+        ly = nlevels(y),
+        lz = nlevels(z),
+        length = ndata,
+        samples = samples,
+        test = test,
+        PACKAGE = "bnlearn")
+  
