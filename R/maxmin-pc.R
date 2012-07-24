@@ -192,14 +192,7 @@ maxmin.pc.heuristic.optimized = function(x, y, sx, data, test, alpha, B,
     for (s in 1:nrow(dsep.subsets)) {
 
       a = conditional.test(x, y, c(dsep.subsets[s,], last), data = data,
-            test = test, B = B, alpha = alpha)
-
-      if (debug) {
-
-        cat("    > trying conditioning subset '", c(dsep.subsets[s,], last), "'.\n")
-        cat("    > node", x, "has p-value:", a, ".\n")
-
-      }#THEN
+            test = test, B = B, alpha = alpha, debug = debug)
 
       # minimum association means maximum p-value.
       min.assoc = max(min.assoc, a)

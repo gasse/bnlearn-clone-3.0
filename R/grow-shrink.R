@@ -159,7 +159,7 @@ gs.markov.blanket = function(x, data, nodes, alpha, B, whitelist, blacklist,
         cat("  * checking node", y, "for inclusion.\n")
 
       a = conditional.test(x, y, mb, data = data, test = test, B = B,
-            alpha = alpha)
+            alpha = alpha, debug = debug)
 
       if (a <= alpha) {
 
@@ -170,18 +170,13 @@ gs.markov.blanket = function(x, data, nodes, alpha, B, whitelist, blacklist,
 
         if (debug) {
 
-          cat("    > node", y, "included in the markov blanket ( p-value:", a, ").\n")
+          cat("    > node", y, "included in the markov blanket.\n")
           cat("    > markov blanket (", length(mb), "nodes ) now is '", mb, "'.\n")
           cat("    > restarting grow loop.\n")
 
         }#THEN
 
         break
-
-      }#THEN
-      else if (debug) {
-
-        cat("    >", x, "indep.", y, "given '", mb, "' ( p-value:", a, ").\n")
 
       }#THEN
 
@@ -209,7 +204,7 @@ gs.markov.blanket = function(x, data, nodes, alpha, B, whitelist, blacklist,
         cat("  * checking node", y, "for exclusion (shrinking phase).\n")
 
       a = conditional.test(x, y, mb[mb != y], data = data, test = test, B = B,
-            alpha = alpha)
+            alpha = alpha, debug = debug)
 
       if (a > alpha) {
 
@@ -220,18 +215,12 @@ gs.markov.blanket = function(x, data, nodes, alpha, B, whitelist, blacklist,
 
         if (debug) {
 
-          cat("    > node", y, "removed from the markov blanket. ( p-value:", a, ")\n")
-          cat("    > conditioning subset: '", mb, "'\n")
+          cat("    > node", y, "removed from the markov blanket.\n")
           cat("    > restarting shrink loop.\n")
 
         }#THEN
 
         break
-
-      }#THEN
-      else if (debug) {
-
-        cat("    > node", y, "remains in the markov blanket. ( p-value:", a, ")\n")
 
       }#THEN
 

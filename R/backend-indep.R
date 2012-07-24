@@ -172,25 +172,17 @@ neighbour = function(x, mb, data, alpha, B = NULL, whitelist, blacklist,
 
       for (s in 1:nrow(dsep.subsets)) {
 
-        if (debug)
-          cat("    > trying conditioning subset '", dsep.subsets[s,], "'.\n")
-
         a = conditional.test(x, y, dsep.subsets[s,], data = data,
-              test = test, B = B, alpha = alpha)
+              test = test, B = B, alpha = alpha, debug = debug)
         if (a > alpha) {
 
           if (debug)
-            cat("    > node", y, "is not a neighbour of", x, ". ( p-value:", a, ")\n")
+            cat("    > node", y, "is not a neighbour of", x, ".\n")
 
           # update the neighbourhood.
           assign("nbrhood", nbrhood[nbrhood != y], envir = sys.frame(-3) )
 
           break
-
-        }#THEN
-        else if (debug) {
-
-            cat("    > node", y, "is still a neighbour of", x, ". ( p-value:", a, ")\n")
 
         }#THEN
 
@@ -279,9 +271,8 @@ vstruct.detect = function(nodes, arcs, mb, data, alpha, B = NULL, test,
           for (s in 1:nrow(dsep.subsets)) {
 
             a = conditional.test(y, z, c(dsep.subsets[s,], x), data = data,
-                  test = test, B = B, alpha = alpha)
-            if (debug)
-              cat("    > testing", y, "vs", z, "given", c(dsep.subsets[s,], x), "(", a, ")\n")
+                  test = test, B = B, alpha = alpha, debug = debug)
+
             max_a = max(a, max_a)
             if (a > alpha) {
 
