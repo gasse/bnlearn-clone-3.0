@@ -4,18 +4,27 @@ maxmin.pc.optimized = function(x, whitelist, blacklist, test,
 
   nodes = names(x)
   mb = list()
+  pcs = list()
 
   for (node in nodes) {
 
     backtracking = unlist(sapply(mb, function(x){ node %in% x$nbr }))
 
+    # Don't use known good nodes for backtracking here, as it would prevent
+    # MMPC's AND filter on neighbourhoods, needed for it's correctness.
+    if (!is.null(backtracking)) {
+      backtracking = backtracking[!backtracking]
+      if (length(backtracking) == 0)
+        backtracking = NULL
+    }#THEN
+
     # 1. [Forward Phase (I)]
-    mb[[node]] = maxmin.pc.forward.phase(node, data = x, nodes = nodes,
+    pcs[[node]] = maxmin.pc.forward.phase(x = node, data = x, nodes = nodes,
          alpha = alpha, B = B, whitelist = whitelist, blacklist = blacklist,
          backtracking = backtracking, test = test, debug = debug)
 
     # 2. [Backward Phase (II)]
-    mb[[node]] = neighbour(node, mb = mb, data = x, alpha = alpha,
+    mb[[node]] = neighbour(node, mb = pcs, data = x, alpha = alpha,
          B = B, whitelist = whitelist, blacklist = blacklist,
          backtracking = backtracking, test = test, markov = FALSE, debug = debug)
 
