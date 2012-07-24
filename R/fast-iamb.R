@@ -100,43 +100,10 @@ fast.ia.markov.blanket = function(x, data, nodes, alpha, B, whitelist, blacklist
 
   nodes = nodes[nodes != x]
   known.good = known.bad = c()
-  whitelisted = nodes[sapply(nodes,
-          function(y) { is.whitelisted(whitelist, c(x, y), either = TRUE) })]
+  whitelisted = nodes[sapply(nodes, function(y) {
+    is.whitelisted(whitelist, c(x, y), either = TRUE) })]
   mb = start
-  insufficient.data = FALSE
 
-  del.node = function(y, x, test) {
-
-    if (debug)
-      cat("  * checking node", y, "for exclusion (shrinking phase).\n")
-
-    a = conditional.test(x, y, mb[mb != y], data = data, test = test, B = B,
-          alpha = alpha)
-
-    if (a > alpha) {
-
-      if (debug) {
-
-        cat("    > node", y, "removed from the markov blanket. ( p-value:", a, ")\n")
-        cat("    > conditioning subset: '", mb[mb != y], "'\n")
-
-      }#THEN
-
-      # update the markov blanket.
-      assign("mb", mb[mb != y], envir = sys.frame(-3))
-
-      return(NULL)
-
-    }#THEN
-    else if (debug) {
-
-      cat("    > node", y, "remains in the markov blanket. ( p-value:", a, ")\n")
-
-    }#THEN
-
-  }#DEL.NODE
-
-  # growing phase
   if (debug) {
 
     cat("----------------------------------------------------------------\n")
@@ -181,91 +148,124 @@ fast.ia.markov.blanket = function(x, data, nodes, alpha, B, whitelist, blacklist
 
   repeat {
 
-    # growing phase.
     # reset the insufficient.data boolean flag.
     insufficient.data = FALSE
 
-    # get an association measure for each of the available nodes.
-    association = sapply(nodes, conditional.test, x, sx = mb,
-                    test = test, data = data, B = B, alpha = alpha)
+    # growing phase.
+    if (debug)
+      cat("  * checking nodes for association (growing phase).\n")
 
-    if (debug) {
+    # do not check the nodes in the markov blanket again.
+    nodes = nodes[!(nodes %in% mb)]
 
-      cat("  * checking nodes for association.\n")
-      sapply(names(association),
-        function(x) {  cat("    >", x, "has p-value", association[x], ".\n")})
+    cands = c()
+    pvalues = c()
 
-    }#THEN
+    # speculatively add the node if the statistical tests is good
+    for (node in nodes) {
 
-    # stop if there are no candidates for inclusion.
-    if (all(association > alpha) || length(nodes) == 0 || is.null(nodes)) break
+      a = conditional.test(x=x, y=node, sx=mb, test = test, data = data, B = B,
+                           alpha = alpha, debug = debug)
 
-    # sort the candidates in increasing p-value order.
-    association = sort(association[which(association <= alpha)])
+      if (a <= alpha) {
 
-    for (node in names(association)) {
-
-      opc = obs.per.cell(x, node, mb, data)
-
-      if (!(test %in% asymptotic.tests) || (opc >= 5)) {
-
-        if (debug) {
-
-          if (test %in% available.continuous.tests) {
-
-            cat("    @", node, "included in the markov blanket (p-value:",
-              association[node], ").\n")
-
-          }#THEN
-          else {
-
-            cat("    @", node, "included in the markov blanket (p-value:",
-              association[node], ", obs/cell:", opc, ").\n")
-
-          }#ELSE
-          cat("    > markov blanket (", length(mb) + 1, " nodes ) now is '", c(mb, node), "'.\n")
-
-        }#THEN
-
-        # speculatively add the node if the asymptotic behaviour of the
-        # statistical tests is still good.
-        mb = c(mb, node)
+        cands = c(cands, node)
+        pvalues = c(pvalues, a)
 
       }#THEN
-      else {
-
-        if (debug)
-          cat("  @ not enough observations per cell (", opc ,"), skipping.\n")
-
-        # do not add new nodes if that compromises the asymptotic behaviour
-        # of the statistical tests.
-        insufficient.data = TRUE
-        break
-
-      }#ELSE
 
     }#FOR
 
-    # shrinking phase.
-    mb.old.length = length(mb)
+    # stop if there are no candidates for inclusion.
+    if (length(cands) == 0)
+      break
+
+    # heuristic (1/2) : sort the candidates in increasing p-value order
+    cands = cands[order(pvalues)]
+    pvalues = pvalues[order(pvalues)]
+
+    # add the candidates
+    for (node in cands) {
+
+      if (test %in% asymptotic.tests) {
+
+        opc = obs.per.cell(x, node, mb, data)
+
+        # do not add new nodes if that compromises the asymptotic behaviour
+        # of the statistical test.
+        if (opc < 5) {
+
+          if (debug)
+            cat("  @ not enough observations per cell (", opc ,"), skipping.\n")
+
+          insufficient.data = TRUE
+          break
+
+        }#THEN
+        else if (debug)
+
+            cat("    @", node, "included in the markov blanket (obs/cell:", opc, ").\n")
+
+      }#THEN
+      else if (debug)
+
+          cat("    @", node, "included in the markov blanket. ( p-value:", pvalues[node == cands], ")\n")
+
+      mb = c(mb, node)
+
+    }#FOR
+
+    # shrinking phase
+    if (debug)
+      cat("  * checking nodes for exclusion (shrinking phase).\n")
 
     # whitelisted nodes are neighbours, they cannot be removed from the
     # markov blanket; speculatively adding nodes prevents further
     # optimizations.
     # known.good nodes from backtracking are not to be removed, either.
-    if (length(mb) > 1)
-      sapply(mb[!(mb %in% c(known.good, whitelisted))], del.node, x = x, test = test)
+    to.check = mb[!(mb %in% c(known.good, whitelisted))]
 
-    # if there are not enough observations and no new node has been included
-    # in the markov blanket, stop iterating.
-    if (insufficient.data && (mb.old.length == length(mb))) break
+    # heuristic (2/2) : order nodes from the lastly to the firstly added
+    # this way we are more prone to remove less correlated nodes first
+    if (length(to.check) > 0)
+      to.check = rev(to.check)
 
-    # do not touch the check the nodes in the markov blanket again.
-    nodes = nodes[!(nodes %in% mb)]
+    for (node in to.check) {
+
+      if (length(mb) < 2) {
+
+        if (debug)
+          cat("  * markov blanket too small, no exclusion possible.")
+
+        break
+
+      }#THEN
+
+      a = conditional.test(x=x, y=node, sx=mb[mb != node], data=data,
+                           test=test, B=B, alpha=alpha, debug=debug)
+
+      if (a > alpha) {
+
+        if (debug)
+          cat("    @ node", node, "removed from the markov blanket.\n")
+
+        # update the markov blanket
+        mb = mb[mb != node]
+
+        # reset the insufficient.data boolean flag.
+        insufficient.data = FALSE
+
+      }#THEN
+
+    }#FOR
+
+    # if there are still not enough observations, stop iterating.
+    if (insufficient.data)
+      break
 
   }#REPEAT
 
-  mb
+  return(mb)
 
 }#FAST.IA.MARKOV.BLANKET
 

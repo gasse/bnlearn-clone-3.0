@@ -112,26 +112,17 @@ inter.ia.markov.blanket = function(x, data, nodes, alpha, B, whitelist, blacklis
       cat("  * checking node", y, "for exclusion (shrinking phase).\n")
 
     a = conditional.test(x, y, mb[mb != y], data = data, test = test, B = B,
-          alpha = alpha)
+          alpha = alpha, debug = debug)
 
     if (a > alpha) {
 
-      if (debug) {
-
-        cat("    > node", y, "removed from the markov blanket. ( p-value:", a, ")\n")
-        cat("    > conditioning subset: '", mb[mb != y], "'\n")
-
-      }#THEN
+      if (debug)
+        cat("  @ node", y, "removed from the markov blanket.\n")
 
       # update the markov blanket.
       assign("mb", mb[mb != y], envir = sys.frame(-3))
 
       return(NULL)
-
-    }#THEN
-    else if (debug) {
-
-      cat("    > node", y, "remains in the markov blanket. ( p-value:", a, ")\n")
 
     }#THEN
 
@@ -182,12 +173,15 @@ inter.ia.markov.blanket = function(x, data, nodes, alpha, B, whitelist, blacklis
 
   repeat {
 
+    if (debug)
+      cat("  * checking nodes for association (growing phase).\n")
+
     # get a snapshot of the markov blanket status.
     mb.snapshot = mb
 
     # get an association measure for each of the available nodes.
     association = sapply(nodes[!(nodes %in% c(mb, culprit))], conditional.test, x, sx = mb,
-                    test = test, data = data, B = B, alpha = alpha)
+                    test = test, data = data, B = B, alpha = alpha, debug = debug)
 
     # stop if there are no candidates for inclusion; the markov blanket
     # would obviously be unchanged.
@@ -196,25 +190,27 @@ inter.ia.markov.blanket = function(x, data, nodes, alpha, B, whitelist, blacklis
     # get the one which maximizes the association measure.
     to.add = names(which.min(association))
 
-    if (debug) {
+    if (debug)
+      cat("  @", to.add, "included in the markov blanket.\n")
 
-      cat("  * checking nodes for association.\n")
-      sapply(names(association),
-        function(x) {  cat("    >", x, "has p-value", association[x], ".\n")})
-      cat("    @", to.add, "included in the markov blanket ( p-value:",
-        association[to.add], ").\n")
-      cat("    > markov blanket (", length(mb) + 1, " nodes ) now is '", c(mb, to.add), "'.\n")
-
-    }#THEN
-
-    if (association[to.add] <= alpha) mb = c(mb, to.add)
+    mb = c(mb, to.add)
 
     # whitelisted nodes are neighbours, they cannot be removed from the
     # markov blanket; the last node added in phase I will never be removed,
     # because the tests for inclusion and removal are identical.
     # known.good nodes from backtracking are not to be removed, either.
-    if (length(mb) > 1)
-      sapply(mb[!(mb %in% c(known.good, to.add, whitelisted))], del.node, x = x, test = test)
+    if (length(mb) > 1) {
+
+      to.check = mb[!(mb %in% c(known.good, to.add, whitelisted))]
+
+      # heuristic : order nodes from the last one added to the first one added
+      # this way we are more prone to remove less correlated nodes first
+      if (length(to.check) > 0)
+        to.check = rev(to.check)
+
+      sapply(to.check, del.node, x = x, test = test)
+
+    }#THEN
 
     if (identical(mb, mb.snapshot)) {
 
