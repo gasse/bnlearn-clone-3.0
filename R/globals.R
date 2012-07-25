@@ -24,7 +24,7 @@ available.continuous.mi = c("mi-g")
 available.mi = c(available.discrete.mi, available.continuous.mi)
 
 markov.blanket.algorithms = c("gs", "iamb", "fast.iamb", "inter.iamb")
-local.search.algorithms = c("mmpc", "si.hiton.pc")
+local.search.algorithms = c("mmpc", "si.hiton.pc", "gs.pc", "iapc", "fast.iapc", "inter.iapc")
 constraint.based.algorithms = c(markov.blanket.algorithms, local.search.algorithms)
 score.based.algorithms = c("hc", "tabu")
 hybrid.algorithms = c("rsmax2", "mmhc")
@@ -52,7 +52,11 @@ method.labels = c(
   'aracne' = "ARACNE",
   'chow.liu' = "Chow-Liu",
   "naive" = "Naive Bayes Classifier",
-  "tan"   = "Tree-Augmented Naive Bayes Classifier"
+  "tan"   = "Tree-Augmented Naive Bayes Classifier",
+  "gs.pc" = "Grow-Shrink + neighbourhood filtering",
+  "iapc" = "Incremental Association + neighbourhood filtering",
+  "fast.iapc" = "Fast Incremental Association + neighbourhood filtering",
+  "inter.iapc" = "Interleaved Incremental Association + neighbourhood filtering"
 )
 
 method.extra.args = list(

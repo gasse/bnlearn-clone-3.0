@@ -647,11 +647,6 @@ nbr.backend = function(x, target, method, whitelist = NULL, blacklist = NULL,
     # check the labels of the blacklisted nodes.
     check.nodes(nodes = blacklist, graph = nodes[nodes != target])
 
-    nodes = nodes[!(nodes %in% blacklist)]
-    x = minimal.data.frame.column(x, nodes, drop = FALSE)
-    x = minimal.data.frame(x)
-    names(x) = nodes
-
   }#THEN
 
   # call the right backend, forward phase.
@@ -668,6 +663,34 @@ nbr.backend = function(x, target, method, whitelist = NULL, blacklist = NULL,
             B = B, whitelist = whitelist, blacklist = blacklist, test = test,
             optimized = optimized, debug = debug) 
 
+  }#ELSE
+  else if (method == "gs.pc") {
+
+    nbr = gs.markov.blanket(x = target, data = x, nodes = nodes,
+            alpha = alpha, B = B, whitelist = whitelist, blacklist = NULL,
+            backtracking = NULL, test = test, debug = debug)
+    
+  }#ELSE
+  else if (method == "iapc") {
+    
+    nbr = ia.markov.blanket(x = target, data = x, nodes = nodes,
+            alpha = alpha, B = B, whitelist = whitelist, blacklist = NULL,
+            backtracking = NULL, test = test, debug = debug)
+    
+  }#ELSE
+  else if (method == "fast.iapc") {
+    
+    nbr = fast.ia.markov.blanket(x = target, data = x, nodes = nodes,
+            alpha = alpha, B = B, whitelist = whitelist, blacklist = NULL,
+            backtracking = NULL, test = test, debug = debug)
+    
+  }#ELSE
+  else if (method == "inter.iapc") {
+    
+    nbr = inter.ia.markov.blanket(x = target, data = x, nodes = nodes,
+            alpha = alpha, B = B, whitelist = whitelist, blacklist = NULL,
+            backtracking = NULL, test = test, debug = debug)
+    
   }#ELSE
 
   # this is the backward phase.
