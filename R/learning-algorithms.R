@@ -2,7 +2,7 @@
 # constraint-based learning algorithms.
 bnlearn = function(x, cluster = NULL, whitelist = NULL, blacklist = NULL,
     test = "mi", alpha = 0.05, B = NULL, method = "gs", debug = FALSE,
-    optimized = TRUE, strict = TRUE, undirected = FALSE) {
+    optimized = TRUE, strict = TRUE, undirected = FALSE, ...) {
 
   assign(".test.counter", 0, envir = .GlobalEnv)
   assign(".test.counter.permut", 0, envir = .GlobalEnv)
@@ -25,6 +25,9 @@ bnlearn = function(x, cluster = NULL, whitelist = NULL, blacklist = NULL,
   alpha = check.alpha(alpha)
   # check B (the number of bootstrap/permutation samples).
   B = check.B(B, test)
+
+  extra.args = list(...)
+  check.unused.args(extra.args, method.extra.args[[method]])
 
   # check the cluster.
   if (!is.null(cluster)) {
@@ -195,6 +198,37 @@ bnlearn = function(x, cluster = NULL, whitelist = NULL, blacklist = NULL,
 
     }#ELSE
 
+  }#THEN
+  else if (method == "hpc") {
+    
+    pc.method = check.hpc.pc.method(extra.args$pc.method)
+    nbr.join = check.nbr.join(extra.args$nbr.join)
+    
+    if (cluster.aware) {
+      
+      mb = hybrid.pc.global.cluster(
+        data = x, whitelist = whitelist, blacklist = blacklist, test = test,
+        alpha = alpha, B = B, strict = strict, pc.method = pc.method,
+        nbr.join = nbr.join, debug=debug)
+      
+    }#THEN
+    else if (optimized) {
+      
+      mb = hybrid.pc.global.optimized(
+        data = x, whitelist = whitelist, blacklist = blacklist, test = test,
+        alpha = alpha, B = B, strict = strict, pc.method = pc.method,
+        nbr.join = nbr.join, debug=debug)
+      
+    }#THEN
+    else {
+      
+      mb = hybrid.pc.global(
+        data = x, whitelist = whitelist, blacklist = blacklist, test = test,
+        alpha = alpha, B = B, strict = strict, pc.method = pc.method,
+        nbr.join = nbr.join, debug=debug)
+      
+    }#ELSE
+    
   }#THEN
 
   if (undirected) {
@@ -480,7 +514,7 @@ mi.matrix = function(x, whitelist = NULL, blacklist = NULL, method, mi = NULL,
 # learn the markov blanket of a single node.
 mb.backend = function(x, target, method, whitelist = NULL, blacklist = NULL,
     start = NULL, test = NULL, alpha = 0.05, B = NULL, debug = FALSE,
-    optimized = TRUE) {
+    optimized = TRUE, ...) {
 
   assign(".test.counter", 0, envir = .GlobalEnv)
   assign(".test.counter.permut", 0, envir = .GlobalEnv)
@@ -502,6 +536,9 @@ mb.backend = function(x, target, method, whitelist = NULL, blacklist = NULL,
   alpha = check.alpha(alpha)
   # check B (the number of bootstrap/permutation samples).
   B = check.B(B, test)
+  
+  extra.args = list(...)
+  check.unused.args(extra.args, nbr.method.extra.args[[method]])
 
   # check the initial status of the markov blanket.
   if (!is.null(start)) {
@@ -592,7 +629,7 @@ mb.backend = function(x, target, method, whitelist = NULL, blacklist = NULL,
 
 # learn the neighbourhood of a single node.
 nbr.backend = function(x, target, method, whitelist = NULL, blacklist = NULL,
-    test = NULL, alpha = 0.05, B = NULL, debug = FALSE, optimized = TRUE) {
+    test = NULL, alpha = 0.05, B = NULL, debug = FALSE, optimized = TRUE, ...) {
 
   assign(".test.counter", 0, envir = .GlobalEnv)
 
@@ -613,6 +650,11 @@ nbr.backend = function(x, target, method, whitelist = NULL, blacklist = NULL,
   alpha = check.alpha(alpha)
   # check B (the number of bootstrap/permutation samples).
   B = check.B(B, test)
+  
+  extra.args = list(...)
+  check.unused.args(extra.args, nbr.method.extra.args[[method]])
+  
+  mb = NULL
 
   # sanitize and rework the whitelist.
   if (!is.null(whitelist)) {
@@ -655,6 +697,11 @@ nbr.backend = function(x, target, method, whitelist = NULL, blacklist = NULL,
     nbr = maxmin.pc.forward.phase(target, data = x, nodes = nodes, 
            alpha = alpha, B = B, whitelist = whitelist, blacklist = blacklist,
            test = test, debug = debug)
+    
+    # this is the forward phase.
+    nbr = neighbour(target, mb = structure(list(nbr), names = target), data = x, 
+           alpha = alpha, B = B, whitelist = whitelist, blacklist = blacklist,
+           test = test, markov = FALSE, debug = debug)
 
   }#THEN
   else if (method == "si.hiton.pc") {
@@ -662,43 +709,72 @@ nbr.backend = function(x, target, method, whitelist = NULL, blacklist = NULL,
     nbr = si.hiton.pc.heuristic(target, data = x, nodes = nodes, alpha = alpha,
             B = B, whitelist = whitelist, blacklist = blacklist, test = test,
             optimized = optimized, debug = debug) 
+    
+    # this is the forward phase.
+    nbr = neighbour(target, mb = structure(list(nbr), names = target), data = x, 
+            alpha = alpha, B = B, whitelist = whitelist, blacklist = blacklist,
+            test = test, markov = FALSE, debug = debug)
 
   }#ELSE
   else if (method == "gs.pc") {
 
-    nbr = gs.markov.blanket(x = target, data = x, nodes = nodes,
+    mb = gs.markov.blanket(x = target, data = x, nodes = nodes,
             alpha = alpha, B = B, whitelist = whitelist, blacklist = NULL,
             backtracking = NULL, test = test, debug = debug)
+    
+    # this is the PC filtering phase.
+    nbr = neighbour(target, mb = structure(list(mb), names = target), data = x, 
+            alpha = alpha, B = B, whitelist = whitelist, blacklist = blacklist,
+            test = test, markov = FALSE, debug = debug)
     
   }#ELSE
   else if (method == "iapc") {
     
-    nbr = ia.markov.blanket(x = target, data = x, nodes = nodes,
+    mb = ia.markov.blanket(x = target, data = x, nodes = nodes,
             alpha = alpha, B = B, whitelist = whitelist, blacklist = NULL,
             backtracking = NULL, test = test, debug = debug)
+    
+    # this is the PC filtering phase.
+    nbr = neighbour(target, mb = structure(list(mb), names = target), data = x, 
+            alpha = alpha, B = B, whitelist = whitelist, blacklist = blacklist,
+            test = test, markov = FALSE, debug = debug)
     
   }#ELSE
   else if (method == "fast.iapc") {
     
-    nbr = fast.ia.markov.blanket(x = target, data = x, nodes = nodes,
+    mb = fast.ia.markov.blanket(x = target, data = x, nodes = nodes,
             alpha = alpha, B = B, whitelist = whitelist, blacklist = NULL,
             backtracking = NULL, test = test, debug = debug)
+    
+    # this is the PC filtering phase.
+    nbr = neighbour(target, mb = structure(list(mb), names = target), data = x, 
+            alpha = alpha, B = B, whitelist = whitelist, blacklist = blacklist,
+            test = test, markov = FALSE, debug = debug)
     
   }#ELSE
   else if (method == "inter.iapc") {
     
-    nbr = inter.ia.markov.blanket(x = target, data = x, nodes = nodes,
+    mb = inter.ia.markov.blanket(x = target, data = x, nodes = nodes,
+            alpha = alpha, B = B, whitelist = whitelist, blacklist = NULL,
+            backtracking = NULL, test = test, debug = debug)
+    
+    # this is the PC filtering phase.
+    nbr = neighbour(target, mb = structure(list(mb), names = target), data = x, 
+            alpha = alpha, B = B, whitelist = whitelist, blacklist = blacklist,
+            test = test, markov = FALSE, debug = debug)
+    
+  }#ELSE
+  else if (method == "hpc") {
+    
+    pc.method = check.hpc.pc.method(extra.args$pc.method)
+    
+    nbr = hybrid.pc(t=target, data = x, nodes = nodes, pc.method = "inter.iapc",
             alpha = alpha, B = B, whitelist = whitelist, blacklist = NULL,
             backtracking = NULL, test = test, debug = debug)
     
   }#ELSE
-
-  # this is the backward phase.
-  nbr = neighbour(target, mb = structure(list(nbr), names = target), data = x, 
-          alpha = alpha, B = B, whitelist = whitelist, blacklist = blacklist,
-          test = test, markov = FALSE, debug = debug)
-
-  return(nbr[["nbr"]])
+  
+  return(nbr$nbr)
 
 }#NBR.BACKEND
 
