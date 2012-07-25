@@ -174,9 +174,6 @@ ia.markov.blanket = function(x, data, nodes, alpha, B, whitelist, blacklist,
   # phase II (backward selection)
   del.node = function(y, x, test) {
 
-    if (debug)
-      cat("  * checking node", y, "for exclusion (shrinking phase).\n")
-
     a = conditional.test(x, y, mb[mb != y], data = data, test = test, B = B,
           alpha = alpha, debug = debug)
 
@@ -199,6 +196,9 @@ ia.markov.blanket = function(x, data, nodes, alpha, B, whitelist, blacklist,
   # because the tests for inclusion and removal are identical.
   # known.good nodes from backtracking are not to be removed, either.
   if (length(mb) > 1) {
+    
+    if (debug)
+      cat("  * checking nodes for exclusion (shrinking phase).\n")
 
     to.check = mb[!(mb %in% c(known.good, to.add, whitelisted))]
 

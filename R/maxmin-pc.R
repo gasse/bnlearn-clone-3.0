@@ -181,8 +181,7 @@ maxmin.pc.heuristic.optimized = function(x, y, sx, data, test, alpha, B,
 
   if (debug) {
 
-    cat("  * checking node", x ,"for association.\n")
-    cat("    > starting with association", min.assoc, ".\n")
+    cat("  * checking", x ,"for max-min association, starting with", min.assoc, ".\n")
 
   }#THEN
 
@@ -224,8 +223,7 @@ maxmin.pc.heuristic.optimized = function(x, y, sx, data, test, alpha, B,
   }#REPEAT
 
   if (debug)
-    cat("    > node", x, "has a minimum association of",
-              min.assoc, ".\n")
+    cat("  > node", x, "has a minimum association of", min.assoc, ".\n")
 
   return(min.assoc)
 
