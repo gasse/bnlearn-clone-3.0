@@ -633,6 +633,7 @@ nbr.backend = function(x, target, method, whitelist = NULL, blacklist = NULL,
     test = NULL, alpha = 0.05, B = NULL, debug = FALSE, optimized = TRUE, ...) {
 
   assign(".test.counter", 0, envir = .GlobalEnv)
+  assign(".test.counter.permut", 0, envir = .GlobalEnv)
 
   # check the data are there.
   check.data(x)
