@@ -693,14 +693,15 @@ nbr.backend = function(x, target, method, whitelist = NULL, blacklist = NULL,
 
   }#THEN
 
-  # call the right backend, forward phase.
+  # call the right backend.
   if (method == "mmpc") {
 
+    # forward phase.
     nbr = maxmin.pc.forward.phase(target, data = x, nodes = nodes, 
            alpha = alpha, B = B, whitelist = whitelist, blacklist = blacklist,
            test = test, debug = debug)
     
-    # this is the forward phase.
+    # backward phase.
     nbr = neighbour(target, mb = structure(list(nbr), names = target), data = x, 
            alpha = alpha, B = B, whitelist = whitelist, blacklist = blacklist,
            test = test, markov = FALSE, debug = debug)
@@ -708,11 +709,12 @@ nbr.backend = function(x, target, method, whitelist = NULL, blacklist = NULL,
   }#THEN
   else if (method == "si.hiton.pc") {
 
+    # forward phase.
     nbr = si.hiton.pc.heuristic(target, data = x, nodes = nodes, alpha = alpha,
             B = B, whitelist = whitelist, blacklist = blacklist, test = test,
             optimized = optimized, debug = debug) 
     
-    # this is the forward phase.
+    # backward phase.
     nbr = neighbour(target, mb = structure(list(nbr), names = target), data = x, 
             alpha = alpha, B = B, whitelist = whitelist, blacklist = blacklist,
             test = test, markov = FALSE, debug = debug)
@@ -724,7 +726,7 @@ nbr.backend = function(x, target, method, whitelist = NULL, blacklist = NULL,
             alpha = alpha, B = B, whitelist = whitelist, blacklist = NULL,
             backtracking = NULL, test = test, debug = debug)
     
-    # this is the PC filtering phase.
+    # PC filtering phase.
     nbr = neighbour(target, mb = structure(list(mb), names = target), data = x, 
             alpha = alpha, B = B, whitelist = whitelist, blacklist = blacklist,
             test = test, markov = FALSE, debug = debug)
@@ -736,7 +738,7 @@ nbr.backend = function(x, target, method, whitelist = NULL, blacklist = NULL,
             alpha = alpha, B = B, whitelist = whitelist, blacklist = NULL,
             backtracking = NULL, test = test, debug = debug)
     
-    # this is the PC filtering phase.
+    # PC filtering phase.
     nbr = neighbour(target, mb = structure(list(mb), names = target), data = x, 
             alpha = alpha, B = B, whitelist = whitelist, blacklist = blacklist,
             test = test, markov = FALSE, debug = debug)
@@ -748,7 +750,7 @@ nbr.backend = function(x, target, method, whitelist = NULL, blacklist = NULL,
             alpha = alpha, B = B, whitelist = whitelist, blacklist = NULL,
             backtracking = NULL, test = test, debug = debug)
     
-    # this is the PC filtering phase.
+    # PC filtering phase.
     nbr = neighbour(target, mb = structure(list(mb), names = target), data = x, 
             alpha = alpha, B = B, whitelist = whitelist, blacklist = blacklist,
             test = test, markov = FALSE, debug = debug)
@@ -760,7 +762,7 @@ nbr.backend = function(x, target, method, whitelist = NULL, blacklist = NULL,
             alpha = alpha, B = B, whitelist = whitelist, blacklist = NULL,
             backtracking = NULL, test = test, debug = debug)
     
-    # this is the PC filtering phase.
+    # PC filtering phase.
     nbr = neighbour(target, mb = structure(list(mb), names = target), data = x, 
             alpha = alpha, B = B, whitelist = whitelist, blacklist = blacklist,
             test = test, markov = FALSE, debug = debug)
