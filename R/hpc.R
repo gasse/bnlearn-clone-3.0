@@ -67,6 +67,167 @@ hybrid.pc.global.cluster = function(data, cluster, whitelist, blacklist, test,
   
 }#HYBRID.PC.GLOBAL.CLUSTER
 
+hybrid.pc.nbr.rec = function(data, target, level, whitelist, blacklist, test,
+  alpha, B, strict, pc.method, nbr.join, debug=FALSE) {
+  
+  nodes = names(data)
+  mb = list()
+  
+  todo = target
+  done = c()
+  
+  # For each round, compute the neighbourhoods of the nodes discovered during the
+  # previous round
+  for (n in 1:level) {
+    
+    mb.new = lapply(as.list(todo), hybrid.pc, data = data, nodes = nodes,
+          alpha = alpha, B = B, whitelist = whitelist, blacklist = blacklist,
+          test = test, debug = debug, pc.method = pc.method)
+    names(mb.new) = todo
+    
+    mb = c(mb, mb.new)
+    
+    done = c(done, todo)
+    todo = c()
+    
+    for (node in mb.new)
+      todo = union(todo, setdiff(node$nbr, done))
+    
+  }#FOR
+  
+  # Give to the lastly discovered nodes a minimal coherent neighbourhood
+  for (node in done)
+    for (nb in setdiff(mb[[node]]$nbr, done)) {
+      if (is.null(mb[[nb]]))
+        mb[[nb]] = list(nbr = node, mb = character(0))
+      else
+        mb[[nb]]$nbr = c(mb[[nb]]$nbr, node)
+    }#FOR
+  
+  # check neighbourhood sets for consistency.
+  mb = bn.recovery(mb, nodes = nodes, strict = strict, debug = debug,
+        filter = nbr.join)
+  
+}#HYBRID.PC.NBR.REC
+
+hybrid.pc.nbr.rec.optimized = function(data, target, level, whitelist, blacklist, test,
+  alpha, B, strict, pc.method, nbr.join, debug=FALSE) {
+  
+  nodes = names(data)
+  mb = list()
+  
+  todo = target
+  done = c()
+  
+  # For each round, compute the neighbourhoods of the nodes discovered during the
+  # previous round
+  for (n in 1:level) {
+    
+    for (node in todo) {
+      
+      backtracking = unlist(sapply(mb, function(x){ node %in% x$nbr  }))
+      
+      # depending on the neighbourhood consistency filter used, a full
+      # backtracking is prohibited.
+      #   AND filter : known good backtracking is forbidden
+      #   OR filter : known bad backtracking is forbidden
+      if (!is.null(backtracking)) {
+        if (nbr.join == "AND")
+          backtracking = backtracking[!backtracking]
+        if (nbr.join == "OR")
+          backtracking = backtracking[backtracking]
+        if (length(backtracking) == 0)
+          backtracking = NULL
+      }#THEN
+      
+      todo = setdiff(todo, node)
+      done = c(done, node)
+      
+      mb[[node]] = hybrid.pc(t = node, data = data, nodes = nodes,
+            whitelist = whitelist, blacklist = blacklist, test = test,
+            alpha = alpha, B = B, pc.method = pc.method,
+            backtracking = backtracking, debug = debug)
+      
+      todo = union(todo, setdiff(mb[[node]]$nbr, done))
+      
+    }#FOR
+    
+  }#FOR
+  
+  # Give to the lastly discovered nodes a minimal coherent neighbourhood
+  for (node in done)
+    for (nb in setdiff(mb[[node]]$nbr, done)) {
+      if (is.null(mb[[nb]]))
+        mb[[nb]] = list(nbr = node, mb = character(0))
+      else
+        mb[[nb]]$nbr = c(mb[[nb]]$nbr, node)
+    }#FOR
+  
+  # check neighbourhood sets for consistency.
+  mb = bn.recovery(mb, nodes = nodes, strict = strict, debug = debug,
+        filter = nbr.join)
+  
+}#HYBRID.PC.NBR.REC.OPTIMIZED
+
+hybrid.pc.nbr.rec.cluster = function(data, target, level, cluster, whitelist,
+  blacklist, test, alpha, B, strict, pc.method, nbr.join, debug=FALSE) {
+  
+  nodes = names(data)
+  mb = list()
+  
+  todo = target
+  done = c()
+  
+  # For each round, compute the neighbourhoods of the nodes discovered during the
+  # previous round
+  for (n in 1:level) {
+    
+    if (length(todo) == 0)
+      break
+    
+    mb.new = list()
+    if (length(todo) > 1) {
+      
+      mb.new = clusterApplyLB(cluster, as.list(todo), hybrid.pc, data = data,
+            nodes = nodes, alpha = alpha, B = B, whitelist = whitelist,
+            blacklist = blacklist, test = test, debug = debug,
+            pc.method = pc.method)
+      names(mb.new) = todo
+      
+    }#THEN
+    else {
+      
+      mb.new[[todo]] = hybrid.pc(t = todo, data = data, nodes = nodes,
+            alpha = alpha, B = B, whitelist = whitelist, blacklist = blacklist,
+            test = test, debug = debug, pc.method = pc.method)
+      
+    }#ELSE
+    
+    mb = c(mb, mb.new)
+    
+    done = c(done, todo)
+    todo = c()
+    
+    for (node in mb.new)
+      todo = union(todo, setdiff(node$nbr, done))
+    
+  }#FOR
+  
+  # Give to the lastly discovered nodes a minimal coherent neighbourhood
+  for (node in done)
+    for (nb in setdiff(mb[[node]]$nbr, done)) {
+      if (is.null(mb[[nb]]))
+        mb[[nb]] = list(nbr = node, mb = character(0))
+      else
+        mb[[nb]]$nbr = c(mb[[nb]]$nbr, node)
+    }#FOR
+  
+  # check neighbourhood sets for consistency.
+  mb = bn.recovery(mb, nodes = nodes, strict = strict, debug = debug,
+        filter = nbr.join)
+  
+}#HYBRID.PC.NBR.REC.CLUSTER
+
 hybrid.pc = function(t, data, nodes, whitelist, blacklist, test, alpha,
   B, pc.method, backtracking = NULL, debug = FALSE) {
 

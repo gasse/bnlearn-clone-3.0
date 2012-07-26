@@ -845,97 +845,33 @@ nbr.rec.backend = function(x, target, method, level, whitelist = NULL, blacklist
     
     pc.method = check.hpc.pc.method(extra.args$pc.method)
     
-    mb = list()
-    nodes = names(x)
-    
-    todo = target
-    done = c()
-    for (n in 1:level) {
+    if (cluster.aware) {
       
-      if (cluster.aware && length(todo) > 1) {
-        
-        mb.tmp = parLapply(cluster, as.list(todo), hybrid.pc, data = x, nodes = nodes,
-                       alpha = alpha, B = B, whitelist = whitelist, blacklist = blacklist,
-                       test = test, debug = debug, pc.method = pc.method)
-        names(mb.tmp) = todo
-        mb = c(mb, mb.tmp)
-        
-        done = c(done, todo)
-        todo = c()
-        
-        for (node in mb.tmp)
-          todo = union(todo, setdiff(node$nbr, done))
-        
-      }#THEN
-      else if (optimized) {
-        
-        for (node in todo) {
-          
-          backtracking = unlist(sapply(mb, function(x){ node %in% x$nbr  }))
-          
-          # depending on the neighbourhood consistency filter used, a full
-          # backtracking is prohibited.
-          #   AND filter : known good backtracking is forbidden
-          #   OR filter : known bad backtracking is forbidden
-          if (!is.null(backtracking)) {
-            if (nbr.join == "AND")
-              backtracking = backtracking[!backtracking]
-            if (nbr.join == "OR")
-              backtracking = backtracking[backtracking]
-            if (length(backtracking) == 0)
-              backtracking = NULL
-          }#THEN
-          
-          todo = setdiff(todo, node)
-          done = c(done, node)
-          
-          mb[[node]] = hybrid.pc(t = node, data = x, nodes = nodes,
-                                 whitelist = whitelist, blacklist = blacklist, test = test,
-                                 alpha = alpha, B = B, pc.method = pc.method, backtracking = backtracking,
-                                 debug = debug)
-          
-          todo = union(todo, setdiff(mb[[node]]$nbr, done))
-          
-        }#FOR
-        
-      }#THEN
-      else {
-        
-        for (node in todo) {
-          
-          todo = setdiff(todo, node)
-          done = c(done, node)
-          
-          mb[[node]] = hybrid.pc(t = node, data = x, nodes = nodes,
-                                 whitelist = whitelist, blacklist = blacklist, test = test,
-                                 alpha = alpha, B = B, pc.method = pc.method, backtracking = NULL,
-                                 debug = debug)
-          
-          todo = union(todo, setdiff(mb[[node]]$nbr, done))
-          
-        }#FOR
-        
-      }#ELSE
+      mb = hybrid.pc.nbr.rec.cluster(
+        data = x, cluster = cluster, target,
+        level = level, whitelist = whitelist, blacklist = blacklist,
+        test = test, alpha = alpha, B = B, strict = strict,
+        pc.method = pc.method, nbr.join = nbr.join, debug = debug)
       
-      if (length(todo) == 0)
-        break
+    }#THEN
+    else if (optimized) {
       
-    }#FOR
-    
-    # Give the nodes at the boundary of the discovered neighbourhoods
-    # a minimal coherent neighbourhood
-    for (node in done)
-      for (nb in setdiff(mb[[node]]$nbr, done)) {
-        if (is.null(mb[[nb]]))
-          mb[[nb]] = list(nbr = node, mb = character(0))
-        else
-          mb[[nb]]$nbr = c(mb[[nb]]$nbr, node)
-      }#FOR
-          
-    
-    # check neighbourhood sets for consistency.
-    mb = bn.recovery(mb, nodes = nodes, strict = strict, debug = debug,
-          filter = nbr.join)
+      mb = hybrid.pc.nbr.rec.optimized(
+        data = x, target, level = level,
+        whitelist = whitelist, blacklist = blacklist, test = test,
+        alpha = alpha, B = B, strict = strict, pc.method = pc.method,
+        nbr.join = nbr.join, debug = debug)
+      
+    }#THEN
+    else {
+      
+      mb = hybrid.pc.nbr.rec(
+        data = x, target, level = level,
+        whitelist = whitelist, blacklist = blacklist, test = test,
+        alpha = alpha, B = B, strict = strict, pc.method = pc.method,
+        nbr.join = nbr.join, debug = debug)
+      
+    }#ELSE
     
   }#THEN
   
