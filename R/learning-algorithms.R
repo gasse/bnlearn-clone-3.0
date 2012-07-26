@@ -843,71 +843,211 @@ nbr.rec.backend = function(x, target, method, level, whitelist = NULL, blacklist
   whitelist = build.whitelist(whitelist, names(x))
   blacklist = build.blacklist(blacklist, whitelist, names(x))
   
-  # call the right backend.
-  if (method == "mmpc") {
+  # the list of nodes attached to the main tree and their neighbourhoods
+  mb = list()
+  # orphan nodes and their neighbourhoods
+  # (computed but not attached to the main tree, possible with an AND join)
+  orphans = list()
+  # nodes whose neighbourhood has already been computed
+  done = c()
+  # nodes whose neighbourhood was discovered in the last round
+  last.nodes = c()
+  # nodes whose neighbourhood will be discovered in the next round
+  next.nodes = target
+  
+  # For each round compute and add the neighbourhoods of the last nodes discovered
+  for (n in 1:level) {
     
-    if (nbr.join == "OR")
-      stop("OR join is forbidden with mmpc.")
+    # If no more nodes to process, stop
+    if (length(next.nodes) == 0)
+      break
     
-    if (cluster.aware) {
+    # Don't re-compute already computed nodes (orphans)
+    todo = setdiff(next.nodes, names(orphans))
+    
+    # Don't compute anything if there is nothing to actually compute (orphans)
+    if (length(todo) > 0) {
       
-      mb = maxmin.pc.nbr.rec.cluster(
-        x = x, cluster = cluster, target, level = level, whitelist = whitelist,
-        blacklist = blacklist, test = test, alpha = alpha, B = B,
-        strict = strict, debug = debug)
+      # call the right backend.
+      if (method == "mmpc") {
+        
+        if (nbr.join == "OR")
+          stop("OR neighbourhood join forbidden with mmpc.")
+        
+        if (cluster.aware && length(todo) > 1) {
+          
+          # 1. [Forward Phase (I)]
+          next.mb = clusterApplyLB(
+            cluster, as.list(todo), maxmin.pc.forward.phase, data = x,
+            nodes = nodes, whitelist = whitelist, blacklist = blacklist,
+            test = test, alpha = alpha, B = B, debug = debug)
+          names(next.mb) = todo
+          
+          # 2. [Backward Phase (II)]
+          next.mb = clusterApplyLB(
+            cluster, as.list(todo), neighbour, mb = next.mb, data = x,
+            alpha = alpha, B = B, whitelist = whitelist, blacklist = blacklist,
+            test = test, markov = FALSE, debug = debug)
+          names(next.mb) = todo
+          
+        }#THEN
+        else if (optimized) {
+          
+          next.mb = list()
+          for (node in todo) {
+            
+            backtracking = unlist(sapply(mb, function(x){ node %in% x$nbr  }))
+            
+            # Don't use known good nodes for backtracking here, as it would prevent
+            # MMPC's AND filter on neighbourhoods, needed for it's correctness.
+            if (!is.null(backtracking)) {
+              backtracking = backtracking[!backtracking]
+              if (length(backtracking) == 0)
+                backtracking = NULL
+            }#THEN
+            
+            # 1. [Forward Phase (I)]
+            next.mb[[node]] = maxmin.pc.forward.phase(
+              x = node, data = x, nodes = nodes, whitelist = whitelist,
+              blacklist = blacklist, test = test, alpha = alpha, B = B,
+              backtracking = backtracking, debug = debug)
+            
+            # 2. [Backward Phase (II)]
+            next.mb[[node]] = neighbour(
+              x = node, mb = next.mb, data = x, alpha = alpha, B = B,
+              whitelist = whitelist, blacklist = blacklist, test = test,
+              backtracking = backtracking, markov = FALSE, debug = debug)
+            
+          }#FOR
+          
+        }#THEN
+        else {
+          
+          # 1. [Forward Phase (I)]
+          next.mb = lapply(
+            as.list(todo), maxmin.pc.forward.phase, data = x, nodes = nodes,
+            alpha = alpha, B = B, whitelist = whitelist, blacklist = blacklist,
+            test = test, debug = debug)
+          names(next.mb) = todo
+          
+          # 2. [Backward Phase (II)]
+          next.mb = lapply(
+            as.list(todo), neighbour, mb = next.mb, data = x, alpha = alpha,
+            B = B, whitelist = whitelist, blacklist = blacklist, test = test,
+            markov = FALSE, debug = debug)
+          names(next.mb) = todo
+          
+        }#ELSE
+        
+      }#THEN
+      else if (method == "hpc") {
+        
+        pc.method = check.hpc.pc.method(extra.args$pc.method)
+        
+        if (cluster.aware && length(todo) > 1) {
+          
+          next.mb = clusterApplyLB(
+            cluster, as.list(todo), hybrid.pc, data = x, nodes = nodes,
+            alpha = alpha, B = B, whitelist = whitelist, blacklist = blacklist,
+            test = test, debug = debug, pc.method = pc.method)
+          names(next.mb) = todo
+          
+        }#THEN
+        else if (optimized) {
+          
+          next.mb = list()
+          for (node in todo) {
+            
+            backtracking = unlist(sapply(mb, function(x){ node %in% x$nbr  }))
+            
+            # depending on the neighbourhood consistency filter used, a full
+            # backtracking is prohibited.
+            #   AND filter : known good backtracking is forbidden
+            #   OR filter : known bad backtracking is forbidden
+            if (!is.null(backtracking)) {
+              if (nbr.join == "AND")
+                backtracking = backtracking[!backtracking]
+              if (nbr.join == "OR")
+                backtracking = backtracking[backtracking]
+              if (length(backtracking) == 0)
+                backtracking = NULL
+            }#THEN
+            
+            next.mb[[node]] = hybrid.pc(
+              t = node, data = x, nodes = nodes, whitelist = whitelist,
+              blacklist = blacklist, test = test, alpha = alpha, B = B,
+              pc.method = pc.method, backtracking = backtracking, debug = debug)
+                        
+          }#FOR
+          
+        }#THEN
+        else {
+          
+          next.mb = lapply(
+            as.list(todo), hybrid.pc, data = x, nodes = nodes,
+            alpha = alpha, B = B, whitelist = whitelist, blacklist = blacklist,
+            test = test, debug = debug, pc.method = pc.method)
+          names(next.mb) = todo
+          
+        }#ELSE
+        
+      }#THEN
       
     }#THEN
-    else if (optimized) {
-      
-      mb = maxmin.pc.nbr.rec.optimized(
-        x = x, target, level = level, whitelist = whitelist,
-        blacklist = blacklist, test = test, alpha = alpha, B = B,
-        strict = strict, debug = debug)
-      
+    
+    # Load orphan nodes (perhaps we can attach them somewhere)
+    next.mb = c(next.mb, orphans)
+    
+    # Add the lastly discovered nodes to the next nodes to be processed,
+    # and detect and manage the orphan nodes
+    if (n == 1) {
+      mb[[target]] = next.mb[[target]]
+      done = target
+      last.nodes = next.nodes
+      next.nodes = mb[[target]]$nbr
     }#THEN
     else {
-      
-      mb = maxmin.pc.nbr.rec(
-        x = x, target, level = level, whitelist = whitelist,
-        blacklist = blacklist, test = test, alpha = alpha, B = B,
-        strict = strict, debug = debug)
-      
+      for (parent in last.nodes) {
+        for (new.node in setdiff(mb[[parent]]$nbr, done)) {
+          if (!is.null(next.mb[[new.node]])) {
+            if (nbr.join == "OR" || parent %in% next.mb[[new.node]]$nbr) {
+              if (is.null(mb[[new.node]])) {
+                mb[[new.node]] = next.mb[[new.node]]
+                next.mb[[new.node]] = NULL
+              }#THEN
+            }#THEN
+            else {
+              mb[[parent]]$nbr = setdiff(mb[[parent]]$nbr, new.node)
+              mb[[parent]]$mb = setdiff(mb[[parent]]$mb, new.node)
+            }#ELSE
+          }#THEN
+        }#FOR
+      }#FOR
+      orphans = next.mb
+      done = names(mb)
+      last.nodes = setdiff(next.nodes, names(orphans))
+      next.nodes = c()
+      for (node in last.nodes) {
+        next.nodes = c(next.nodes, mb[[node]]$nbr)
+      }#FOR
+      next.nodes = setdiff(unique(next.nodes), done)
     }#ELSE
     
-  }#THEN
-  else if (method == "hpc") {
-    
-    pc.method = check.hpc.pc.method(extra.args$pc.method)
-    
-    if (cluster.aware) {
-      
-      mb = hybrid.pc.nbr.rec.cluster(
-        data = x, cluster = cluster, target,
-        level = level, whitelist = whitelist, blacklist = blacklist,
-        test = test, alpha = alpha, B = B, strict = strict,
-        pc.method = pc.method, nbr.join = nbr.join, debug = debug)
-      
-    }#THEN
-    else if (optimized) {
-      
-      mb = hybrid.pc.nbr.rec.optimized(
-        data = x, target, level = level,
-        whitelist = whitelist, blacklist = blacklist, test = test,
-        alpha = alpha, B = B, strict = strict, pc.method = pc.method,
-        nbr.join = nbr.join, debug = debug)
-      
-    }#THEN
-    else {
-      
-      mb = hybrid.pc.nbr.rec(
-        data = x, target, level = level,
-        whitelist = whitelist, blacklist = blacklist, test = test,
-        alpha = alpha, B = B, strict = strict, pc.method = pc.method,
-        nbr.join = nbr.join, debug = debug)
-      
-    }#ELSE
-    
-  }#THEN
+  }#FOR
+  
+  # Give to the edge nodes a minimal coherent neighbourhood
+  for (node in last.nodes) {
+    for (nb in setdiff(mb[[node]]$nbr, done)) {
+      if (is.null(mb[[nb]]))
+        mb[[nb]] = list(nbr = node, mb = character(0))
+      else
+        mb[[nb]]$nbr = c(mb[[nb]]$nbr, node)
+    }#FOR
+  }#FOR
+  
+  # check neighbourhood sets for consistency.
+  mb = bn.recovery(mb, nodes = nodes, strict = strict, debug = debug,
+                   filter = nbr.join)
   
   # save the status of the learning algorithm.
   arcs = nbr2arcs(mb)
