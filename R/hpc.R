@@ -1,6 +1,7 @@
 
-hybrid.pc.global = function(data, whitelist, blacklist, test,
-  alpha, B, strict, pc.method, nbr.join, debug=FALSE) {
+hybrid.pc.global = function(
+  data, whitelist, blacklist, test, alpha, B, strict, pc.method, nbr.join,
+  debug=FALSE) {
   
   nodes = names(data)
   
@@ -13,10 +14,13 @@ hybrid.pc.global = function(data, whitelist, blacklist, test,
   mb = bn.recovery(mb, nodes = nodes, strict = strict, debug = debug,
                    filter = nbr.join)
   
+  return(mb)
+  
 }#HYBRID.PC.GLOBAL
 
-hybrid.pc.global.optimized = function(data, whitelist, blacklist, test,
-  alpha, B, strict, pc.method, nbr.join, debug=FALSE) {
+hybrid.pc.global.optimized = function(
+  data, whitelist, blacklist, test, alpha, B, strict, pc.method, nbr.join,
+  debug=FALSE) {
   
   nodes = names(data)
   mb = list()
@@ -49,10 +53,13 @@ hybrid.pc.global.optimized = function(data, whitelist, blacklist, test,
   mb = bn.recovery(mb, nodes = nodes, strict = strict, debug = debug,
                    filter = nbr.join)
   
+  return(mb)
+  
 }#HYBRID.PC.GLOBAL.OPTIMIZED
 
-hybrid.pc.global.cluster = function(data, cluster, whitelist, blacklist, test,
-  alpha, B, strict, pc.method, nbr.join, debug=FALSE) {
+hybrid.pc.global.cluster = function(
+  data, cluster, whitelist, blacklist, test, alpha, B, strict, pc.method,
+  nbr.join, debug=FALSE) {
   
   nodes = names(data)
   
@@ -65,20 +72,26 @@ hybrid.pc.global.cluster = function(data, cluster, whitelist, blacklist, test,
   mb = bn.recovery(mb, nodes = nodes, strict = strict, debug = debug,
                    filter = nbr.join)
   
+  return(mb)
+  
 }#HYBRID.PC.GLOBAL.CLUSTER
 
-hybrid.pc.nbr.rec = function(data, target, level, whitelist, blacklist, test,
-  alpha, B, strict, pc.method, nbr.join, debug=FALSE) {
+hybrid.pc.nbr.rec = function(
+  data, target, level, whitelist, blacklist, test, alpha, B, strict,
+  pc.method, nbr.join, debug=FALSE) {
   
   nodes = names(data)
-  mb = list()
   
-  todo = target
+  mb = list()
   done = c()
+  todo = target
   
   # For each round, compute the neighbourhoods of the nodes discovered during the
   # previous round
   for (n in 1:level) {
+    
+    if (length(todo) == 0)
+      break
     
     mb.new = lapply(as.list(todo), hybrid.pc, data = data, nodes = nodes,
           alpha = alpha, B = B, whitelist = whitelist, blacklist = blacklist,
@@ -86,7 +99,6 @@ hybrid.pc.nbr.rec = function(data, target, level, whitelist, blacklist, test,
     names(mb.new) = todo
     
     mb = c(mb, mb.new)
-    
     done = c(done, todo)
     todo = c()
     
@@ -108,20 +120,26 @@ hybrid.pc.nbr.rec = function(data, target, level, whitelist, blacklist, test,
   mb = bn.recovery(mb, nodes = nodes, strict = strict, debug = debug,
         filter = nbr.join)
   
+  return(mb)
+  
 }#HYBRID.PC.NBR.REC
 
-hybrid.pc.nbr.rec.optimized = function(data, target, level, whitelist, blacklist, test,
-  alpha, B, strict, pc.method, nbr.join, debug=FALSE) {
+hybrid.pc.nbr.rec.optimized = function(
+  data, target, level, whitelist, blacklist, test, alpha, B, strict,
+  pc.method, nbr.join, debug=FALSE) {
   
   nodes = names(data)
-  mb = list()
   
-  todo = target
+  mb = list()
   done = c()
+  todo = target
   
   # For each round, compute the neighbourhoods of the nodes discovered during the
   # previous round
   for (n in 1:level) {
+    
+    if (length(todo) == 0)
+      break
     
     for (node in todo) {
       
@@ -140,13 +158,13 @@ hybrid.pc.nbr.rec.optimized = function(data, target, level, whitelist, blacklist
           backtracking = NULL
       }#THEN
       
-      todo = setdiff(todo, node)
-      done = c(done, node)
+      mb[[node]] = hybrid.pc(
+        t = node, data = data, nodes = nodes, whitelist = whitelist,
+        blacklist = blacklist, test = test, alpha = alpha, B = B,
+        pc.method = pc.method, backtracking = backtracking, debug = debug)
       
-      mb[[node]] = hybrid.pc(t = node, data = data, nodes = nodes,
-            whitelist = whitelist, blacklist = blacklist, test = test,
-            alpha = alpha, B = B, pc.method = pc.method,
-            backtracking = backtracking, debug = debug)
+      done = c(done, node)
+      todo = setdiff(todo, node)
       
       todo = union(todo, setdiff(mb[[node]]$nbr, done))
       
@@ -167,16 +185,19 @@ hybrid.pc.nbr.rec.optimized = function(data, target, level, whitelist, blacklist
   mb = bn.recovery(mb, nodes = nodes, strict = strict, debug = debug,
         filter = nbr.join)
   
+  return(mb)
+  
 }#HYBRID.PC.NBR.REC.OPTIMIZED
 
-hybrid.pc.nbr.rec.cluster = function(data, target, level, cluster, whitelist,
-  blacklist, test, alpha, B, strict, pc.method, nbr.join, debug=FALSE) {
+hybrid.pc.nbr.rec.cluster = function(
+  data, target, level, cluster, whitelist, blacklist, test, alpha, B, strict,
+  pc.method, nbr.join, debug=FALSE) {
   
   nodes = names(data)
-  mb = list()
   
-  todo = target
+  mb = list()
   done = c()
+  todo = target
   
   # For each round, compute the neighbourhoods of the nodes discovered during the
   # previous round
@@ -185,7 +206,6 @@ hybrid.pc.nbr.rec.cluster = function(data, target, level, cluster, whitelist,
     if (length(todo) == 0)
       break
     
-    mb.new = list()
     if (length(todo) > 1) {
       
       mb.new = clusterApplyLB(cluster, as.list(todo), hybrid.pc, data = data,
@@ -197,6 +217,7 @@ hybrid.pc.nbr.rec.cluster = function(data, target, level, cluster, whitelist,
     }#THEN
     else {
       
+      mb.new = list()
       mb.new[[todo]] = hybrid.pc(t = todo, data = data, nodes = nodes,
             alpha = alpha, B = B, whitelist = whitelist, blacklist = blacklist,
             test = test, debug = debug, pc.method = pc.method)
@@ -204,7 +225,6 @@ hybrid.pc.nbr.rec.cluster = function(data, target, level, cluster, whitelist,
     }#ELSE
     
     mb = c(mb, mb.new)
-    
     done = c(done, todo)
     todo = c()
     
@@ -225,6 +245,8 @@ hybrid.pc.nbr.rec.cluster = function(data, target, level, cluster, whitelist,
   # check neighbourhood sets for consistency.
   mb = bn.recovery(mb, nodes = nodes, strict = strict, debug = debug,
         filter = nbr.join)
+  
+  return(mb)
   
 }#HYBRID.PC.NBR.REC.CLUSTER
 
