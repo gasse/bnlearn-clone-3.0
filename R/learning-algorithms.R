@@ -778,6 +778,202 @@ nbr.backend = function(x, target, method, whitelist = NULL, blacklist = NULL,
 
 }#NBR.BACKEND
 
+# learn recursively the neighbourhoods around a single node.
+nbr.rec.backend = function(x, target, method, level, whitelist = NULL, blacklist = NULL,
+  test = NULL, alpha = 0.05, B = NULL, strict = FALSE, nbr.join = "AND", cluster = NULL,
+  debug = FALSE, optimized = TRUE, ...) {
+  
+  assign(".test.counter", 0, envir = .GlobalEnv)
+  assign(".test.counter.permut", 0, envir = .GlobalEnv)
+  
+  res = NULL
+  cluster.aware = FALSE
+  
+  # check the data are there.
+  check.data(x)
+  # cache the node labels.
+  nodes = names(x)
+  # a valid node is needed.
+  check.nodes(nodes = target, graph = nodes, max.nodes = 1)
+  # check the algorithm.
+  check.learning.algorithm(method, class = "neighbours")
+  # check test labels.
+  test = check.test(test, x)
+  # check the logical flags (debug, strict, optimized).
+  check.logical(debug)
+  check.logical(strict)
+  check.logical(optimized)
+  # check alpha.
+  alpha = check.alpha(alpha)
+  # check B (the number of bootstrap/permutation samples).
+  B = check.B(B, test)
+  # check the neighbourhood join filter.
+  nbr.join = check.nbr.join(nbr.join)
+  # check the neighbourhood level.
+  level = check.nbr.level(level)
+  
+  extra.args = list(...)
+  check.unused.args(extra.args, nbr.method.extra.args[[method]])
+  
+  # check the cluster.
+  if (!is.null(cluster)) {
+    
+    check.cluster(cluster)
+    
+    # enter in cluster-aware mode.
+    cluster.aware = TRUE
+    # set the test counter in all the cluster nodes.
+    clusterEvalQ(cluster, assign(".test.counter", 0, envir = .GlobalEnv))
+    clusterEvalQ(cluster, assign(".test.counter.permut", 0, envir = .GlobalEnv))
+    # disable debugging, the slaves do not cat() here.
+    if (debug) {
+      
+      warning("disabling debugging output in cluster-aware mode.")
+      debug = FALSE
+      
+    }#THEN
+    
+  }#THEN
+  
+  # sanitize whitelist and blacklist, if any.
+  whitelist = build.whitelist(whitelist, names(x))
+  blacklist = build.blacklist(blacklist, whitelist, names(x))
+  
+  # call the right backend.
+  if (method == "hpc") {
+    
+    pc.method = check.hpc.pc.method(extra.args$pc.method)
+    
+    mb = list()
+    nodes = names(x)
+    
+    todo = target
+    done = c()
+    for (n in 1:level) {
+      
+      if (cluster.aware && length(todo) > 1) {
+        
+        mb.tmp = parLapply(cluster, as.list(todo), hybrid.pc, data = x, nodes = nodes,
+                       alpha = alpha, B = B, whitelist = whitelist, blacklist = blacklist,
+                       test = test, debug = debug, pc.method = pc.method)
+        names(mb.tmp) = todo
+        mb = c(mb, mb.tmp)
+        
+        done = c(done, todo)
+        todo = c()
+        
+        for (node in mb.tmp)
+          todo = union(todo, setdiff(node$nbr, done))
+        
+      }#THEN
+      else if (optimized) {
+        
+        for (node in todo) {
+          
+          backtracking = unlist(sapply(mb, function(x){ node %in% x$nbr  }))
+          
+          # depending on the neighbourhood consistency filter used, a full
+          # backtracking is prohibited.
+          #   AND filter : known good backtracking is forbidden
+          #   OR filter : known bad backtracking is forbidden
+          if (!is.null(backtracking)) {
+            if (nbr.join == "AND")
+              backtracking = backtracking[!backtracking]
+            if (nbr.join == "OR")
+              backtracking = backtracking[backtracking]
+            if (length(backtracking) == 0)
+              backtracking = NULL
+          }#THEN
+          
+          todo = setdiff(todo, node)
+          done = c(done, node)
+          
+          mb[[node]] = hybrid.pc(t = node, data = x, nodes = nodes,
+                                 whitelist = whitelist, blacklist = blacklist, test = test,
+                                 alpha = alpha, B = B, pc.method = pc.method, backtracking = backtracking,
+                                 debug = debug)
+          
+          todo = union(todo, setdiff(mb[[node]]$nbr, done))
+          
+        }#FOR
+        
+      }#THEN
+      else {
+        
+        for (node in todo) {
+          
+          todo = setdiff(todo, node)
+          done = c(done, node)
+          
+          mb[[node]] = hybrid.pc(t = node, data = x, nodes = nodes,
+                                 whitelist = whitelist, blacklist = blacklist, test = test,
+                                 alpha = alpha, B = B, pc.method = pc.method, backtracking = NULL,
+                                 debug = debug)
+          
+          todo = union(todo, setdiff(mb[[node]]$nbr, done))
+          
+        }#FOR
+        
+      }#ELSE
+      
+      if (length(todo) == 0)
+        break
+      
+    }#FOR
+    
+    # Give the nodes at the boundary of the discovered neighbourhoods
+    # a minimal coherent neighbourhood
+    for (node in done)
+      for (nb in setdiff(mb[[node]]$nbr, done)) {
+        if (is.null(mb[[nb]]))
+          mb[[nb]] = list(nbr = node, mb = character(0))
+        else
+          mb[[nb]]$nbr = c(mb[[nb]]$nbr, node)
+      }#FOR
+          
+    
+    # check neighbourhood sets for consistency.
+    mb = bn.recovery(mb, nodes = nodes, strict = strict, debug = debug,
+          filter = nbr.join)
+    
+  }#THEN
+  
+  # save the status of the learning algorithm.
+  arcs = nbr2arcs(mb)
+  learning = list(whitelist = whitelist, blacklist = blacklist,
+                  test = test, args = list(alpha = alpha), optimized = optimized,
+                  ntests = get(".test.counter", envir = .GlobalEnv))
+  
+  if (test %in% resampling.tests)
+    learning$npermuts = get(".test.counter.permut", envir = .GlobalEnv)
+  
+  # include also the number of permutations/bootstrap samples
+  # if it makes sense.
+  if (!is.null(B))
+    learning$args$B = B
+  
+  res = list(learning = learning,
+             nodes = cache.structure(names(mb), arcs = arcs),
+             arcs = arcs)
+  
+  # add tests performed by the slaves to the test counter.
+  if (cluster.aware) {
+    res$learning$ntests = res$learning$ntests +
+      sum(unlist(clusterEvalQ(cluster, get(".test.counter", envir = .GlobalEnv))))
+    if (test %in% resampling.tests)
+      res$learning$npermuts = res$learning$npermuts +
+        sum(unlist(clusterEvalQ(cluster, get(".test.counter.permuts", envir = .GlobalEnv))))
+  }#THEN
+  
+  # save the learning method used.
+  res$learning$algo = method
+  # save the 'optimized' flag.
+  res$learning$optimized = optimized
+  
+  invisible(structure(res, class = "bn"))
+  
+}#NBR.REC.BACKEND
+
 # baeysian network classifiers.
 bayesian.classifier = function(data, method, training, explanatory, whitelist,
     blacklist, expand, debug = FALSE) {

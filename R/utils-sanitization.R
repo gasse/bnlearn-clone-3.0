@@ -2139,3 +2139,15 @@ check.hpc.pc.method = function(pc.method, default = "inter.iapc") {
   return(pc.method)
 
 }#CHECK.HPC.PC.METHOD
+
+check.nbr.level = function(level, default = 1) {
+  
+  if (missing(level) || is.null(level))
+    level = default
+  
+  if (level <= 0)
+    stop("level must be greater than zero.")
+  
+  return(level)
+  
+}#CHECK.NBR.LEVEL

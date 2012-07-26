@@ -180,6 +180,18 @@ learn.nbr = function(x, node, method, whitelist = NULL, blacklist = NULL,
 
 }#LEARN.NBR
 
+# Frontend for causal discovery learning algotrithms.
+learn.nbr.rec = function(x, node, method, level, whitelist = NULL, blacklist = NULL,
+  test = NULL, alpha = 0.05, B = NULL, strict = FALSE, nbr.join = NULL,
+  cluster = NULL, debug = FALSE, optimized = TRUE, ...) {
+  
+  nbr.rec.backend(x, target = node, method = method, level = level,
+    whitelist = whitelist, blacklist = blacklist, test = test, alpha = alpha,
+    B = B, strict = strict, nbr.join = nbr.join, cluster = cluster,
+    debug = debug, optimized = optimized, ...)
+  
+}#LEARN.NBR.REC
+
 # naive Bayes frontend.
 naive.bayes = function(training, explanatory, data) {
 
