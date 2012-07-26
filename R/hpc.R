@@ -51,14 +51,14 @@ hybrid.pc.global.optimized = function(data, whitelist, blacklist, test,
   
 }#HYBRID.PC.GLOBAL.OPTIMIZED
 
-hybrid.pc.global.cluster = function(data, whitelist, blacklist, test,
+hybrid.pc.global.cluster = function(data, cluster, whitelist, blacklist, test,
   alpha, B, strict, pc.method, nbr.join, debug=FALSE) {
   
   nodes = names(data)
   
-  mb = parLapply(cluster, as.list(nodes), hybrid.pc, data = data, nodes = nodes,
-        alpha = alpha, B = B, whitelist = whitelist, blacklist = blacklist,
-        test = test, debug = debug, pc.method = pc.method)
+  mb = clusterApplyLB(cluster, as.list(nodes), hybrid.pc, data = data,
+        nodes = nodes, alpha = alpha, B = B, whitelist = whitelist,
+        blacklist = blacklist, test = test, debug = debug, pc.method = pc.method)
   names(mb) = nodes
   
   # check neighbourhood sets for consistency.

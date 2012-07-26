@@ -207,8 +207,9 @@ bnlearn = function(x, cluster = NULL, whitelist = NULL, blacklist = NULL,
     if (cluster.aware) {
       
       mb = hybrid.pc.global.cluster(
-        data = x, whitelist = whitelist, blacklist = blacklist, test = test,
-        alpha = alpha, B = B, strict = strict, pc.method = pc.method,
+        data = x, cluster = cluster, whitelist = whitelist,
+        blacklist = blacklist, test = test, alpha = alpha, B = B,
+        strict = strict, pc.method = pc.method,
         nbr.join = nbr.join, debug=debug)
       
     }#THEN
