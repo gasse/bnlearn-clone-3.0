@@ -844,7 +844,38 @@ nbr.rec.backend = function(x, target, method, level, whitelist = NULL, blacklist
   blacklist = build.blacklist(blacklist, whitelist, names(x))
   
   # call the right backend.
-  if (method == "hpc") {
+  if (method == "mmpc") {
+    
+    if (nbr.join == "OR")
+      stop("OR join is forbidden with mmpc.")
+    
+    if (cluster.aware) {
+      
+      mb = maxmin.pc.nbr.rec.cluster(
+        x = x, cluster = cluster, target, level = level, whitelist = whitelist,
+        blacklist = blacklist, test = test, alpha = alpha, B = B,
+        strict = strict, debug = debug)
+      
+    }#THEN
+    else if (optimized) {
+      
+      mb = maxmin.pc.nbr.rec.optimized(
+        x = x, target, level = level, whitelist = whitelist,
+        blacklist = blacklist, test = test, alpha = alpha, B = B,
+        strict = strict, debug = debug)
+      
+    }#THEN
+    else {
+      
+      mb = maxmin.pc.nbr.rec(
+        x = x, target, level = level, whitelist = whitelist,
+        blacklist = blacklist, test = test, alpha = alpha, B = B,
+        strict = strict, debug = debug)
+      
+    }#ELSE
+    
+  }#THEN
+  else if (method == "hpc") {
     
     pc.method = check.hpc.pc.method(extra.args$pc.method)
     

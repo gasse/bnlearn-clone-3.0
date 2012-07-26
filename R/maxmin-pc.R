@@ -85,6 +85,205 @@ maxmin.pc = function(x, whitelist, blacklist, test, alpha, B,
 
 }#MAXMIN.PC
 
+maxmin.pc.nbr.rec = function(
+  x, target, level, whitelist, blacklist, test, alpha, B, strict,
+  debug = FALSE) {
+  
+  nodes = names(x)
+  
+  mb = list()
+  done = c()
+  todo = target
+  
+  # For each round, compute the neighbourhoods of the nodes discovered during the
+  # previous round
+  for (n in 1:level) {
+    
+    if (length(todo) == 0)
+      break
+    
+    # 1. [Forward Phase (I)]
+    mb.new = lapply(as.list(todo), maxmin.pc.forward.phase, data = x,
+          nodes = nodes, alpha = alpha, B = B, whitelist = whitelist,
+          blacklist = blacklist, test = test, debug = debug)
+    names(mb.new) = todo
+    
+    # 2. [Backward Phase (II)]
+    mb.new = lapply(as.list(todo), neighbour, mb = mb.new, data = x,
+          alpha = alpha, B = B, whitelist = whitelist, blacklist = blacklist,
+          test = test, markov = FALSE, debug = debug)
+    names(mb.new) = todo
+    
+    mb = c(mb, mb.new)
+    done = c(done, todo)
+    todo = c()
+    
+    for (node in mb.new)
+      todo = union(todo, setdiff(node$nbr, done))
+    
+  }#FOR
+  
+  # Give to the lastly discovered nodes a minimal coherent neighbourhood
+  for (node in done)
+    for (nb in setdiff(mb[[node]]$nbr, done)) {
+      if (is.null(mb[[nb]]))
+        mb[[nb]] = list(nbr = node, mb = character(0))
+      else
+        mb[[nb]]$nbr = c(mb[[nb]]$nbr, node)
+    }#FOR
+  
+  # check neighbourhood sets for consistency.
+  mb = bn.recovery(mb, nodes = nodes, strict = strict, debug = debug,
+                   filter = "AND")
+  
+  return(mb)
+  
+}#MAXMIN.PC.NBR.REC
+
+maxmin.pc.nbr.rec.optimized = function(
+  x, target, level, whitelist, blacklist, test, alpha, B, strict,
+  debug = FALSE) {
+  
+  nodes = names(x)
+  
+  mb = list()
+  done = c()
+  todo = target
+  
+  # For each round, compute the neighbourhoods of the nodes discovered during the
+  # previous round
+  for (n in 1:level) {
+    
+    if (length(todo) == 0)
+      break
+    
+    for (node in todo) {
+      
+      backtracking = unlist(sapply(mb, function(x){ node %in% x$nbr  }))
+      
+      # Don't use known good nodes for backtracking here, as it would prevent
+      # MMPC's AND filter on neighbourhoods, needed for it's correctness.
+      if (!is.null(backtracking)) {
+        backtracking = backtracking[!backtracking]
+        if (length(backtracking) == 0)
+          backtracking = NULL
+      }#THEN
+      
+      # 1. [Forward Phase (I)]
+      mb[[node]] = maxmin.pc.forward.phase(
+        x = node, data = x, nodes = nodes, whitelist = whitelist,
+        blacklist = blacklist, test = test, alpha = alpha, B = B,
+        backtracking = backtracking, debug = debug)
+      
+      # 2. [Backward Phase (II)]
+      mb[[node]] = neighbour(
+        x = node, mb = mb, data = x, alpha = alpha, B = B,
+        whitelist = whitelist, blacklist = blacklist, test = test,
+        backtracking = backtracking, markov = FALSE, debug = debug)
+      
+      done = c(done, node)
+      todo = setdiff(todo, node)
+      
+      todo = union(todo, setdiff(mb[[node]]$nbr, done))
+      
+    }#FOR
+    
+  }#FOR
+  
+  # Give to the lastly discovered nodes a minimal coherent neighbourhood
+  for (node in done)
+    for (nb in setdiff(mb[[node]]$nbr, done)) {
+      if (is.null(mb[[nb]]))
+        mb[[nb]] = list(nbr = node, mb = character(0))
+      else
+        mb[[nb]]$nbr = c(mb[[nb]]$nbr, node)
+    }#FOR
+  
+  # check neighbourhood sets for consistency.
+  mb = bn.recovery(mb, nodes = nodes, strict = strict, debug = debug,
+                   filter = "AND")
+  
+  return(mb)
+  
+}#MAXMIN.PC.NBR.REC.OPTIMIZED
+
+maxmin.pc.nbr.rec.cluster = function(
+  x, target, level, cluster, whitelist, blacklist, test, alpha, B, strict,
+  debug = FALSE) {
+  
+  nodes = names(x)
+  
+  mb = list()
+  done = c()
+  todo = target
+  
+  # For each round, compute the neighbourhoods of the nodes discovered during the
+  # previous round
+  for (n in 1:level) {
+    
+    if (length(todo) == 0)
+      break
+    
+    if (length(todo) > 1) {
+      
+      # 1. [Forward Phase (I)]
+      mb.new = clusterApplyLB(
+        cluster, as.list(todo), maxmin.pc.forward.phase, data = x,
+        nodes = nodes, whitelist = whitelist, blacklist = blacklist,
+        test = test, alpha = alpha, B = B, debug = debug)
+      names(mb.new) = todo
+      
+      # 2. [Backward Phase (II)]
+      mb.new = clusterApplyLB(
+        cluster, as.list(todo), neighbour, mb = mb.new, data = x,
+        alpha = alpha, B = B, whitelist = whitelist, blacklist = blacklist,
+        test = test, markov = FALSE, debug = debug)
+      names(mb.new) = todo
+      
+    }#THEN
+    else {
+      
+      # 1. [Forward Phase (I)]
+      mb.new = list()
+      mb.new[[todo]] = maxmin.pc.forward.phase(
+        x = todo, data = x, nodes = nodes, whitelist = whitelist,
+        blacklist = blacklist, test = test, alpha = alpha, B = B,
+        debug = debug)
+      
+      # 2. [Backward Phase (II)]
+      mb.new[[todo]] = neighbour(
+        x = todo, mb = mb.new, data = x, alpha = alpha, B = B,
+        whitelist = whitelist, blacklist = blacklist, test = test,
+        markov = FALSE, debug = debug)
+      
+    }#ELSE
+    
+    mb = c(mb, mb.new)
+    done = c(done, todo)
+    todo = c()
+    
+    for (node in mb.new)
+      todo = union(todo, setdiff(node$nbr, done))
+    
+  }#FOR
+  
+  # Give to the lastly discovered nodes a minimal coherent neighbourhood
+  for (node in done)
+    for (nb in setdiff(mb[[node]]$nbr, done)) {
+      if (is.null(mb[[nb]]))
+        mb[[nb]] = list(nbr = node, mb = character(0))
+      else
+        mb[[nb]]$nbr = c(mb[[nb]]$nbr, node)
+    }#FOR
+  
+  # check neighbourhood sets for consistency.
+  mb = bn.recovery(mb, nodes = nodes, strict = strict, debug = debug,
+                   filter = "AND")
+  
+  return(mb)
+  
+}#MAXMIN.PC.NBR.REC.CLUSTER
+
 maxmin.pc.forward.phase = function(x, data, nodes, alpha, B, whitelist,
   blacklist, backtracking = NULL, test, debug = FALSE) {
 
