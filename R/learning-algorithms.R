@@ -979,8 +979,6 @@ nbr.rec.backend = function(x, target, method, level, whitelist = NULL, blacklist
   # orphan nodes and their neighbourhoods
   # (computed but not attached to the main tree, possible with an AND join)
   orphans = list()
-  # nodes whose neighbourhood has already been computed
-  done = c()
   # nodes whose neighbourhood was discovered in the last round
   last.nodes = c()
   # nodes whose neighbourhood will be discovered in the next round
@@ -994,58 +992,72 @@ nbr.rec.backend = function(x, target, method, level, whitelist = NULL, blacklist
       break
     
     # Don't re-compute already computed nodes (orphans)
+    next.mb = list()
     todo = setdiff(next.nodes, names(orphans))
+    for (node in setdiff(next.nodes, todo))
+      next.mb[[node]] = orphans[[node]]
     
-    # Don't compute anything if there is nothing to actually compute (orphans)
-    if (length(todo) > 0) {
+    # Compute the remaining todo nodes
+    if (length(todo) > 0)
+      next.mb = c(next.mb, nbr.rec.internal.backend(todo = todo, nodes = nodes))
+    
+    # Merge the lastly discovered neighbourhoods
+    if (n == 1 || nbr.join == "OR") {
       
-      next.mb = nbr.rec.internal.backend(todo = todo, nodes = nodes)
+      # With an OR join they are added with no hesitation
+      for (node in next.nodes) {
+        mb[[node]] = next.mb[[node]]
+      }#FOR
       
-    }#THEN
-    
-    # Load orphan nodes (perhaps we can attach them somewhere)
-    next.mb = c(next.mb, orphans)
-    
-    # Add the lastly discovered nodes to the next nodes to be processed,
-    # and detect and manage the orphan nodes
-    if (n == 1) {
-      mb[[target]] = next.mb[[target]]
-      done = target
-      last.nodes = next.nodes
-      next.nodes = mb[[target]]$nbr
     }#THEN
     else {
+      
+      # With an AND join orphan nodes may appear
       for (parent in last.nodes) {
-        for (new.node in setdiff(mb[[parent]]$nbr, done)) {
-          if (!is.null(next.mb[[new.node]])) {
-            if (nbr.join == "OR" || parent %in% next.mb[[new.node]]$nbr) {
-              if (is.null(mb[[new.node]])) {
-                mb[[new.node]] = next.mb[[new.node]]
-                next.mb[[new.node]] = NULL
-              }#THEN
-            }#THEN
-            else {
-              mb[[parent]]$nbr = setdiff(mb[[parent]]$nbr, new.node)
-              mb[[parent]]$mb = setdiff(mb[[parent]]$mb, new.node)
-            }#ELSE
+        for (new.node in setdiff(mb[[parent]]$nbr, names(mb))) {
+          if (parent %in% next.mb[[new.node]]$nbr) {
+            mb[[new.node]] = next.mb[[new.node]]
           }#THEN
+          else {
+            # Early pruning of inconsistent neighbourhoods
+            mb[[parent]]$nbr = setdiff(mb[[parent]]$nbr, new.node)
+            mb[[parent]]$mb = setdiff(mb[[parent]]$mb, new.node)
+          }#ELSE
         }#FOR
       }#FOR
-      orphans = next.mb
-      done = names(mb)
-      last.nodes = setdiff(next.nodes, names(orphans))
-      next.nodes = c()
-      for (node in last.nodes) {
-        next.nodes = c(next.nodes, mb[[node]]$nbr)
+      
+      # Not added nodes are orphans
+      for (orphan in setdiff(names(next.mb), names(mb))) {
+        orphans[[orphan]] = next.mb[[orphan]]
+        next.mb[[orphan]] = NULL
       }#FOR
-      next.nodes = setdiff(unique(next.nodes), done)
+      
     }#ELSE
+    
+    # Manage the next nodes to be processed
+    last.nodes = names(next.mb)
+    next.nodes = NULL
+    for (node in last.nodes) {
+      next.nodes = union(next.nodes, mb[[node]]$nbr)
+    }#FOR
+    next.nodes = setdiff(next.nodes, names(mb))
     
   }#FOR
   
-  # Compute the edge nodes neighbourhood (in the discovered nodes)
-  edge.mb = nbr.rec.internal.backend(todo = next.nodes, nodes = c(done, next.nodes))
-  mb = c(mb, edge.mb)
+  # Fix the edge nodes (lastly discovered) neighbourhoods
+  for (node in next.nodes) {
+    mb[[node]] = list(
+      mb = character(0),
+      nbr = character(0),
+      parents = character(0),
+      children = character(0))
+    for (parent in last.nodes) {
+      if (node %in% mb[[parent]]$nbr) {
+        mb[[node]]$nbr = c(mb[[node]]$nbr, parent)
+        mb[[node]]$mb = c(mb[[node]]$mb, parent)
+      }#THEN
+    }#FOR
+  }#FOR
   
   # check neighbourhood sets for consistency.
   mb = bn.recovery(mb, nodes = nodes, strict = strict, debug = debug,
