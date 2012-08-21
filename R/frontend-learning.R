@@ -72,6 +72,20 @@ hpc = function(x, cluster = NULL, whitelist = NULL, blacklist = NULL,
   
 }#MMPC
 
+# HPC frontend (cached version).
+hpc.cached = function(x, whitelist = NULL, blacklist = NULL,
+               test = NULL, alpha = 0.05, B = NULL, debug = FALSE, optimized = TRUE,
+               strict = FALSE, undirected = TRUE, nbr.join = "AND",
+               pc.method = "inter.iapc") {
+  
+  bnlearn(x = x, cluster = NULL, whitelist = whitelist,
+          blacklist = blacklist, test = test, alpha = alpha, B = B,
+          method = "hpc.cached", debug = debug, optimized = optimized,
+          strict = strict, undirected = undirected, nbr.join = nbr.join,
+          pc.method = pc.method)
+  
+}#HPC.CACHED
+
 # Semi-Interleaved HITON-PC.
 si.hiton.pc = function(x, cluster = NULL, whitelist = NULL, blacklist = NULL,
     test = NULL, alpha = 0.05, B = NULL, debug = FALSE, optimized = TRUE,

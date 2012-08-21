@@ -231,6 +231,17 @@ bnlearn = function(x, cluster = NULL, whitelist = NULL, blacklist = NULL,
     }#ELSE
     
   }#THEN
+  else if (method == "hpc.cached") {
+    
+    pc.method = check.hpc.pc.method(extra.args$pc.method)
+    nbr.join = check.nbr.join(extra.args$nbr.join)
+      
+    mb = hybrid.pc.cached.global(
+      data = x, whitelist = whitelist, blacklist = blacklist, test = test,
+      alpha = alpha, B = B, strict = strict, pc.method = pc.method,
+      nbr.join = nbr.join, debug = debug)
+    
+  }#THEN
 
   if (undirected) {
 

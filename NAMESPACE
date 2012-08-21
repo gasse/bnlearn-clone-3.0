@@ -8,6 +8,7 @@ export(
   "chow.liu",
   "aracne",
   "hpc",
+  "hpc.cached",
   "hc",
   "tabu",
   "rsmax2",
