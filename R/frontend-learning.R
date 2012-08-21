@@ -70,7 +70,7 @@ hpc = function(x, cluster = NULL, whitelist = NULL, blacklist = NULL,
     strict = strict, undirected = undirected, nbr.join = nbr.join,
     pc.method = pc.method)
   
-}#MMPC
+}#HPC
 
 # HPC frontend (cached version).
 hpc.cached = function(x, whitelist = NULL, blacklist = NULL,
