@@ -5,9 +5,11 @@ hybrid.pc.cached.global = function(
   
   nodes = names(data)
   
+  cache = new.env()
   mb = lapply(as.list(nodes), hybrid.pc.cached, data = data, nodes = nodes,
               alpha = alpha, B = B, whitelist = whitelist, blacklist = blacklist,
-              test = test, pc.method = pc.method, cache = new.env(), debug = debug)
+              test = test, pc.method = pc.method, cache = cache, debug = debug)
+  rm(cache)
   names(mb) = nodes
   
   # check neighbourhood sets for consistency.

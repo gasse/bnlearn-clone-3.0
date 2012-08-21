@@ -980,6 +980,16 @@ nbr.rec.backend = function(x, target, method, level, whitelist = NULL, blacklist
       }#ELSE
       
     }#THEN
+    else if (method == "hpc.cached") {
+      
+      pc.method = check.hpc.pc.method(extra.args$pc.method)
+      mb = lapply(
+        as.list(todo), hybrid.pc.cached, data = x, nodes = nodes,
+        alpha = alpha, B = B, whitelist = whitelist, blacklist = blacklist,
+        test = test, pc.method = pc.method, cache = cache, debug = debug)
+      names(mb) = todo
+      
+    }#THEN
     
     return(mb)
     
@@ -994,6 +1004,9 @@ nbr.rec.backend = function(x, target, method, level, whitelist = NULL, blacklist
   last.nodes = c()
   # nodes whose neighbourhood will be discovered in the next round
   next.nodes = target
+  
+  # A cache may be needed by the neighbourhood learning procedures
+  cache = new.env()
   
   # For each round compute and add the neighbourhoods of the last nodes discovered
   for (n in 1:level) {
@@ -1054,6 +1067,9 @@ nbr.rec.backend = function(x, target, method, level, whitelist = NULL, blacklist
     next.nodes = setdiff(next.nodes, names(mb))
     
   }#FOR
+  
+  # Cache not needed anymore
+  rm(cache)
   
   # Fix the edge nodes (lastly discovered) neighbourhoods
   for (node in next.nodes) {
