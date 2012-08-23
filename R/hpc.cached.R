@@ -251,7 +251,7 @@ hybrid.pc.de.rsps.cached = function(t, data, nodes, alpha, B, test, cache,
   
   for (x in pcs) {
     # optimisation : don't re-check nodes already in RSPS
-    for (y in setdiff(cache$pcs[[x]], c(t, rsps))) {
+    for (y in setdiff(cache$pcs[[x]], c(t, pcs, rsps))) {
         
       # optimisation : avoid irrelevant tests
       if (x %in% dsep[[y]])
