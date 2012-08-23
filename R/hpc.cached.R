@@ -64,8 +64,7 @@ hybrid.pc.cached = function(t, data, nodes, whitelist, blacklist, test, alpha, B
                             test, cache, debug)
   
   # 2. [RSPS] Search remaining spouses superset, those not already in PCS
-  rsps = unique(unlist(
-    hybrid.pc.de.rsps.cached(t, data, nodes, alpha, B, test, cache, debug)))
+  rsps = hybrid.pc.de.rsps.cached(t, data, nodes, alpha, B, test, cache, debug)
   
   #optimisation : 2 nodes in PC and no SP --> PC == PCS
   if(length(c(pcs, rsps)) < 3)
@@ -242,7 +241,7 @@ hybrid.pc.de.rsps.cached = function(t, data, nodes, alpha, B, test, cache,
   
   pcs = cache$pcs[[t]]
   dsep = cache$dsep[[t]]
-  rsps = list()
+  rsps = character(0)
   
   if (debug) {
     cat("----------------------------------------------------------------\n")
@@ -251,7 +250,8 @@ hybrid.pc.de.rsps.cached = function(t, data, nodes, alpha, B, test, cache,
   }#THEN
   
   for (x in pcs) {
-    for (y in setdiff(cache$pcs[[x]], t)) {
+    # optimisation : don't re-check nodes already in RSPS
+    for (y in setdiff(cache$pcs[[x]], c(t, rsps))) {
         
       # optimisation : avoid irrelevant tests
       if (x %in% dsep[[y]])
@@ -262,12 +262,10 @@ hybrid.pc.de.rsps.cached = function(t, data, nodes, alpha, B, test, cache,
       
       if (a <= alpha) {
         
-        if (is.null(rsps[[x]]))
-          rsps[[x]] = list()
-        rsps[[x]] = c(rsps[[x]], y)
+        rsps = c(rsps, y)
         
         if (debug) {
-          cat("  @ node", y, "added to the spouses superset through ", x, "\n")
+          cat("  @ node", y, "added to the spouses superset\n")
         }#THEN
       
       }#THEN
