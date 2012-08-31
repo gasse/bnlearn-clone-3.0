@@ -330,10 +330,7 @@ hybrid.pc.de.rsps = function(t, data, nodes, pcs, dsep, alpha, B, test,
 
     rspsx = vector()
     pvalsx = vector()
-    
-    # heuristic 1 : sort by name to be deterministic
     nodes.to.check = nodes[!nodes %in% c(t, pcs)]
-    nodes.to.check = nodes.to.check[order(nodes.to.check)]
 
     # Phase (I): search spouses Y in the form T->X<-Y from the
     # remaining nodes (not in pcs)
