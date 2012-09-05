@@ -330,11 +330,10 @@ hybrid.pc.de.rsps = function(t, data, nodes, pcs, dsep, alpha, B, test,
 
     rspsx = vector()
     pvalsx = vector()
-    nodes.to.check = nodes[!nodes %in% c(t, pcs)]
 
     # Phase (I): search spouses Y in the form T->X<-Y from the
     # remaining nodes (not in pcs)
-    for (y in nodes.to.check) {
+    for (y in setdiff(nodes, c(t, pcs))) {
 
       # optimisation : avoid irrelevant tests
       if (x %in% dsep[[y]])
@@ -357,13 +356,13 @@ hybrid.pc.de.rsps = function(t, data, nodes, pcs, dsep, alpha, B, test,
       }#THEN
     }#FOR
 
-    # heuristic 2 : sort the candidates in decreasing p-value order
+    # heuristic : sort the candidates in decreasing p-value order
     # this way we are more prone to remove less correlated nodes first
     rspsx = rspsx[order(pvalsx, decreasing = TRUE)]
 
     # Phase (II): remove false positive spouses Y in the form T->X<-Z<-...<-Y
     # (descendants or ancestors of Z)
-    for (y in rspsx)
+    for (y in rspsx) {
       for (z in rspsx[rspsx != y]) {
 
         a = conditional.test(t, y, c(x, z), data = data, test = test, B = B,
@@ -383,6 +382,7 @@ hybrid.pc.de.rsps = function(t, data, nodes, pcs, dsep, alpha, B, test,
         
         }#THEN
       }#FOR
+    }#FOR
 
     rsps = c(rsps, rspsx)
     

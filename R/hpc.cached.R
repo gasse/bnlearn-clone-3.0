@@ -171,7 +171,7 @@ hybrid.pc.de.pcs.cached = function(t, data, nodes, alpha, B, whitelist, blacklis
   cache$pcs[[t]] = pcs
   cache$pvals[[t]] = pvals
   
-  # heuristic 2 : sort the PC candidates in decreasing p-value order
+  # heuristic 1 : sort the PC candidates in decreasing p-value order
   # this way we are more prone to remove less correlated nodes first
   ord = order(pvals, decreasing = TRUE)
   pcs = pcs[ord]
@@ -186,7 +186,7 @@ hybrid.pc.de.pcs.cached = function(t, data, nodes, alpha, B, whitelist, blacklis
   pcs = union(whitelisted, pcs)
   pvals = c(rep(0, length(pcs) - length(pvals)), pvals)
   
-  # heuristic 3 : sort the d-separating canditates in increasing p-value order
+  # heuristic 2 : sort the d-separating canditates in increasing p-value order
   # this way we are more prone to remove with highly correlated nodes first
   nodes.to.check.against = pcs[order(pvals)]
   
