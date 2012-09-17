@@ -180,6 +180,18 @@ hybrid.pc.nbr.search = function(t, data, nodes, test, alpha, B,
             blacklist, backtracking, test, debug)
 
   }#THEN
+  else if (method == "fdr.iapc") {
+    
+    mb = iambfdr(x = t, data = data, nodes = nodes,
+      alpha = alpha, B = B, whitelist = whitelist, blacklist = blacklist,
+      start = start, backtracking = backtracking, test = test, debug = debug)
+    
+    #optimisation : no need to filter if the node we are looking for is not in MB
+    if (is.null(looking.for) || looking.for %in% mb)
+      pc = hybrid.pc.filter(t, pcs = mb, rsps = NULL, data, alpha, B, whitelist,
+                            blacklist, backtracking, test, debug)
+    
+  }#THEN
   else {
 
     stop(paste("the neighbourhood method ", method, " is not valid.", sep=""))

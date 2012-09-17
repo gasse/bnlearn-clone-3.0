@@ -2131,7 +2131,7 @@ check.hpc.pc.method = function(pc.method, default = "inter.iapc") {
   if (missing(pc.method) || is.null(pc.method))
     pc.method = default
 
-  ok = c("iapc", "fast.iapc", "inter.iapc")
+  ok = c("iapc", "fast.iapc", "inter.iapc", "fdr.iapc")
   if (!(pc.method %in% ok))
     stop(paste(c("valid pc methods are:\n",
                  sprintf("    %-10s %s\n", ok, method.labels[ok])), sep = ""))
